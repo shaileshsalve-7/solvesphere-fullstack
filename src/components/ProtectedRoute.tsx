@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext'
 import type { UserRole } from '../types'
 
 export function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: UserRole[] }) {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  if (loading) return <main className="center-state">Checking your session…</main>
   if (!user) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
   return <>{children}</>

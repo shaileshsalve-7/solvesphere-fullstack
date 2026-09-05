@@ -1,1 +1,33 @@
-export function Notifications(){const items=['New high-priority challenge: Safer pedestrian crossing around school.','Mentor feedback received on your submitted solution.','Challenge status updated: Overflowing waste bins moved to In progress.','A new team member joined your workspace.'];return <section className="page"><div className="page-head"><div><span className="eyebrow">Stay informed</span><h1>Notifications</h1><p>Keep track of challenge, team and review activity.</p></div></div><div className="panel">{items.map((x,i)=><div className="row" key={x}><div><b>{x}</b><small>{i+1} hour{i?'s':''} ago</small></div></div>)}</div></section>}
+import { useCallback, useEffect, useState } from 'react'
+import { Empty, ErrorBanner, Loading, SuccessBanner } from '../components/States'
+import { accountApi, apiError } from '../services/api'
+import type { Notification } from '../types'
+
+export function Notifications() {
+  const [items, setItems] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try { setItems(await accountApi.notifications()) }
+    catch (requestError) { setError(apiError(requestError)) }
+    finally { setLoading(false) }
+  }, [])
+  useEffect(() => { void load() }, [load])
+
+  async function read(id: string) {
+    try { await accountApi.readNotification(id); await load() } catch (requestError) { setError(apiError(requestError)) }
+  }
+  async function readAll() {
+    try { const result = await accountApi.readAll(); setSuccess(`${result.updated} notifications marked as read.`); await load() } catch (requestError) { setError(apiError(requestError)) }
+  }
+
+  return <section className="page">
+    <div className="page-head"><div><span className="eyebrow">Stay informed</span><h1>Notifications</h1><p>Keep track of challenge, team and review activity.</p></div><button className="btn btn-secondary" onClick={readAll}>Mark all read</button></div>
+    {error && <ErrorBanner message={error}/>}
+    {success && <SuccessBanner message={success}/>}
+    {loading ? <Loading/> : items.length ? <div className="panel">{items.map((item) => <div className={`row notification ${item.readAt ? '' : 'unread'}`} key={item.id}><div><b>{item.title}</b><small>{item.body} • {new Date(item.createdAt).toLocaleString()}</small></div>{!item.readAt && <button className="btn btn-secondary" onClick={() => read(item.id)}>Mark read</button>}</div>)}</div> : <Empty message="You have no notifications."/>}
+  </section>
+}

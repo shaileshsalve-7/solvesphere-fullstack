@@ -1,90 +1,44 @@
-# SolveSphere
+# SolveSphere frontend
 
-**SIH26043 — Platform to Crowdsource Societal Challenges and Collaborative Problem Solving**
+React and TypeScript frontend for **SIH26043 — Platform to Crowdsource Societal Challenges and Collaborative Problem Solving**.
 
-> Identify Problems. Connect People. Build Solutions. Create Measurable Impact.
+This branch contains the frontend only. The backend is maintained on the `codex/solvesphere-backend` branch of the same repository. The original frontend work and commit history are preserved from [shubhamkadam2737-jpg/solvesphere](https://github.com/shubhamkadam2737-jpg/solvesphere).
 
-SolveSphere is now a standalone professional **Vite + React + TypeScript** application. Hatchable is not required.
+## Features connected to the API
 
-## Architecture
+- Email verification-code sign-in with access/refresh sessions
+- Server-authoritative Citizen, Student, Mentor, and Admin roles
+- Challenge discovery, reporting, details, evidence, and moderation
+- Team creation and membership
+- Solution drafts, submission, mentor review, and progress updates
+- Notifications/read state, profile editing, dashboards, and admin role management
+- Loading, empty, success, validation, permission, and request-error states
 
-```text
-solvesphere/
-├── index.html
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── tsconfig.app.json
-├── tsconfig.node.json
-├── .env.example
-├── .gitignore
-└── src/
-    ├── App.tsx
-    ├── main.tsx
-    ├── vite-env.d.ts
-    ├── components/
-    │   ├── Layout.tsx
-    │   ├── Logo.tsx
-    │   └── ProtectedRoute.tsx
-    ├── context/
-    │   └── AuthContext.tsx
-    ├── data/
-    │   └── mockData.ts
-    ├── db/
-    │   └── schema.sql
-    ├── lib/
-    │   └── storage.ts
-    ├── pages/
-    │   ├── Home.tsx
-    │   ├── Login.tsx
-    │   ├── Dashboard.tsx
-    │   ├── Challenges.tsx
-    │   ├── ChallengeDetails.tsx
-    │   ├── Teams.tsx
-    │   ├── Solutions.tsx
-    │   ├── Notifications.tsx
-    │   ├── Profile.tsx
-    │   ├── Admin.tsx
-    │   └── NotFound.tsx
-    ├── services/
-    │   ├── api.ts
-    │   └── auth.ts
-    ├── styles/
-    │   └── index.css
-    └── types/
-        └── index.ts
-```
+## Run with the backend
 
-## Features
-
-- Citizen / Student / Mentor / Admin role-based access
-- Protected routes and role-aware Admin console
-- Challenge discovery and priority/status tracking
-- Challenge details and solution readiness
-- Team workspace
-- Solution submission/review workflow foundation
-- Notifications and profile pages
-- Axios API service with bearer-token interceptor
-- PostgreSQL/Supabase-ready database schema
-- Standalone email + 6-digit demo-code authentication abstraction
-- Responsive SolveSphere branding and supplied logo
-
-## Run locally
+Frontend requirements: Node.js 20 or newer.
 
 ```bash
 npm install
+copy .env.example .env.local
 npm run dev
 ```
 
-Build for production:
+The frontend defaults to `http://localhost:4000/api`. Configure another backend URL with:
+
+```dotenv
+VITE_API_URL=http://localhost:4000/api
+```
+
+In a second checkout of the same repository, switch to `codex/solvesphere-backend`, follow that branch's README, and start the backend on port 4000.
+
+For the local development OTP flow, use the code configured as `DEV_OTP_CODE` on the backend. The browser never chooses its own role: new users start as Citizens, the configured bootstrap email becomes the initial Admin, and an Admin promotes verified users to Student or Mentor.
+
+## Build
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Backend / database
-
-The frontend is intentionally separated from the backend through `src/services/api.ts`. Set `VITE_API_URL` in `.env` when a backend is available. The SQL schema in `src/db/schema.sql` is PostgreSQL-compatible and can be used with Supabase or another PostgreSQL service.
-
-The current authentication implementation is a development/demo adapter. For production, connect `src/services/auth.ts` to a real email/OTP or passwordless authentication backend and issue signed access/refresh tokens. Never store passwords in frontend localStorage.
+All API entity identifiers are UUID strings. The former numeric mock challenge IDs and static mock datasets have been removed.

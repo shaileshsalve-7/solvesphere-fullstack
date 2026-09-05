@@ -1,9 +1,119 @@
 export type UserRole = 'Citizen' | 'Student' | 'Mentor' | 'Admin'
 export type ChallengeStatus = 'Open' | 'Under review' | 'In progress' | 'Submitted' | 'Resolved' | 'Denied'
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'
+export type SolutionStatus = 'Draft' | 'Mentor review' | 'Approved' | 'Changes requested'
 
-export interface User { id: string; name: string; email: string; role: UserRole; avatarUrl?: string }
-export interface Challenge { id: number; title: string; category: string; location: string; status: ChallengeStatus; priority: Priority; readiness: number; teams: number; owner: string; evidence: number; description?: string }
-export interface Team { id: string; name: string; challenge: string; members: number; status: 'Active' | 'Inactive' }
-export interface Solution { id: string; title: string; team: string; status: 'Draft' | 'Mentor review' | 'Approved' | 'Changes requested'; feedback: string }
-export interface AppState { user: User; challenges: Challenge[]; teams: Team[]; solutions: Solution[] }
+export interface User {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+  avatarUrl?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Challenge {
+  id: string
+  title: string
+  description: string
+  category: string
+  location: string
+  status: ChallengeStatus
+  priority: Priority
+  readiness: number
+  teams: number
+  owner: string
+  ownerId: string
+  evidence: number
+  createdAt: string
+  updatedAt: string
+  statusHistory?: Array<{ fromStatus: ChallengeStatus | null; toStatus: ChallengeStatus; reason?: string; changedBy: string; createdAt: string }>
+}
+
+export interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+  memberRole: 'Owner' | 'Member'
+  joinedAt: string
+}
+
+export interface Team {
+  id: string
+  name: string
+  challengeId: string
+  challenge: string
+  ownerId: string
+  owner: string
+  members: number
+  status: 'Active' | 'Inactive'
+  createdAt: string
+  updatedAt: string
+  memberList?: TeamMember[]
+}
+
+export interface SolutionReview {
+  id: string
+  decision: 'Approved' | 'Changes requested'
+  feedback: string
+  reviewerId: string
+  reviewer: string
+  createdAt: string
+}
+
+export interface Solution {
+  id: string
+  title: string
+  description: string
+  repositoryUrl?: string | null
+  demoUrl?: string | null
+  teamId: string
+  team: string
+  challengeId: string
+  challenge: string
+  createdBy: string
+  status: SolutionStatus
+  feedback?: string | null
+  submittedAt?: string | null
+  reviewedAt?: string | null
+  createdAt: string
+  updatedAt: string
+  reviews?: SolutionReview[]
+}
+
+export interface ProgressUpdate {
+  id: string
+  summary: string
+  completionPercent: number
+  blockers?: string | null
+  milestoneDate?: string | null
+  author: string
+  createdAt: string
+}
+
+export interface Notification {
+  id: string
+  title: string
+  body: string
+  resourceType?: string | null
+  resourceId?: string | null
+  readAt?: string | null
+  createdAt: string
+}
+
+export interface DashboardSummary {
+  role: UserRole
+  challenges: { total: number; critical: number; open: number }
+  teams: { total: number; mine: number }
+  solutions: { total: number; awaiting_review: number; mine: number }
+  unreadNotifications: number
+}
+
+export interface AdminOverview {
+  usersByRole: Array<{ role: UserRole; count: number }>
+  challengesByStatus: Array<{ status: ChallengeStatus; count: number }>
+  activeTeams: number
+  solutionsByStatus: Array<{ status: SolutionStatus; count: number }>
+}

@@ -11,7 +11,7 @@ export function Layout() {
   return <div className="app-shell">
     <aside className="sidebar"><Link to="/" className="brand"><Logo size={42}/><span><b>SolveSphere</b><small>Civic collaboration</small></span></Link>
       <nav>{nav.map(([label,to,Icon]) => <NavLink key={to} to={to}>{<Icon size={17}/>}<span>{label}</span></NavLink>)}{user?.role === 'Admin' && <NavLink to="/admin"><ShieldCheck size={17}/><span>Admin</span></NavLink>}</nav>
-      <button className="logout" onClick={()=>{logout();navigate('/')}}><LogOut size={16}/> Sign out</button>
+      <button className="logout" onClick={() => { void logout().then(() => navigate('/')) }}><LogOut size={16}/> Sign out</button>
     </aside><main className="main"><header className="topbar"><div className="user"><span>{user?.name}</span><small>{user?.role}</small></div></header><Outlet/></main>
   </div>
 }
