@@ -1,90 +1,63 @@
-# SolveSphere
+# SolveSphere backend
 
-**SIH26043 — Platform to Crowdsource Societal Challenges and Collaborative Problem Solving**
+Node.js and TypeScript API for **SIH26043 — Platform to Crowdsource Societal Challenges and Collaborative Problem Solving**.
 
-> Identify Problems. Connect People. Build Solutions. Create Measurable Impact.
+This backend is published in the existing [shubhamkadam2737-jpg/solvesphere](https://github.com/shubhamkadam2737-jpg/solvesphere) repository on the `codex/solvesphere-backend` branch. The integrated frontend lives on the separate `codex/solvesphere-frontend` branch; the repository's default branch is left unchanged.
 
-SolveSphere is now a standalone professional **Vite + React + TypeScript** application. Hatchable is not required.
+## What is implemented
 
-## Architecture
+- Passwordless email-code authentication with short-lived access tokens and rotating refresh tokens
+- Server-controlled roles: `Citizen`, `Student`, `Mentor`, and `Admin`
+- Challenge reporting, discovery, details, editing, moderation, status history, and readiness
+- Evidence upload and authenticated download for JPEG, PNG, WebP, MP4, and PDF files
+- Student team creation, membership, and protected owner rules
+- Solution drafts, submission, mentor review, revision, and approval
+- Progress updates and challenge readiness tracking
+- User profiles, notifications/read state, role-aware dashboards, and admin summaries
+- PostgreSQL-compatible migrations and a persistent local PGlite database
+- Input validation, ownership checks, CORS, security headers, request limits, and rate limiting
 
-```text
-solvesphere/
-├── index.html
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── tsconfig.app.json
-├── tsconfig.node.json
-├── .env.example
-├── .gitignore
-└── src/
-    ├── App.tsx
-    ├── main.tsx
-    ├── vite-env.d.ts
-    ├── components/
-    │   ├── Layout.tsx
-    │   ├── Logo.tsx
-    │   └── ProtectedRoute.tsx
-    ├── context/
-    │   └── AuthContext.tsx
-    ├── data/
-    │   └── mockData.ts
-    ├── db/
-    │   └── schema.sql
-    ├── lib/
-    │   └── storage.ts
-    ├── pages/
-    │   ├── Home.tsx
-    │   ├── Login.tsx
-    │   ├── Dashboard.tsx
-    │   ├── Challenges.tsx
-    │   ├── ChallengeDetails.tsx
-    │   ├── Teams.tsx
-    │   ├── Solutions.tsx
-    │   ├── Notifications.tsx
-    │   ├── Profile.tsx
-    │   ├── Admin.tsx
-    │   └── NotFound.tsx
-    ├── services/
-    │   ├── api.ts
-    │   └── auth.ts
-    ├── styles/
-    │   └── index.css
-    └── types/
-        └── index.ts
-```
+## Local setup
 
-## Features
-
-- Citizen / Student / Mentor / Admin role-based access
-- Protected routes and role-aware Admin console
-- Challenge discovery and priority/status tracking
-- Challenge details and solution readiness
-- Team workspace
-- Solution submission/review workflow foundation
-- Notifications and profile pages
-- Axios API service with bearer-token interceptor
-- PostgreSQL/Supabase-ready database schema
-- Standalone email + 6-digit demo-code authentication abstraction
-- Responsive SolveSphere branding and supplied logo
-
-## Run locally
+Requirements: Node.js 20 or newer. No separately installed database is needed for local development.
 
 ```bash
 npm install
+copy .env.example .env
+npm run migrate
 npm run dev
 ```
 
-Build for production:
+The API listens on `http://127.0.0.1:4000` by default. Check it with `GET /health`.
+
+The example configuration uses PGlite, a real embedded PostgreSQL-compatible database stored under `.data/`. For a hosted PostgreSQL database, set:
+
+```dotenv
+DATABASE_MODE=postgres
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
+```
+
+Run the production build and tests with:
 
 ```bash
 npm run build
-npm run preview
+npm test
+npm start
 ```
 
-## Backend / database
+## Authentication policy
 
-The frontend is intentionally separated from the backend through `src/services/api.ts`. Set `VITE_API_URL` in `.env` when a backend is available. The SQL schema in `src/db/schema.sql` is PostgreSQL-compatible and can be used with Supabase or another PostgreSQL service.
+New accounts are always created as `Citizen`, except the one email named by `BOOTSTRAP_ADMIN_EMAIL`. An administrator must promote accounts to `Student`, `Mentor`, or `Admin`; the client cannot select a privileged role.
 
-The current authentication implementation is a development/demo adapter. For production, connect `src/services/auth.ts` to a real email/OTP or passwordless authentication backend and issue signed access/refresh tokens. Never store passwords in frontend localStorage.
+`DEV_AUTH_ENABLED=true` uses the fixed `DEV_OTP_CODE` only for local development and tests. Configuration loading fails if development authentication is enabled in production. Production requires `OTP_DELIVERY_WEBHOOK_URL`; the backend sends the one-time code to that HTTPS delivery adapter and never returns it to the browser.
+
+Use random secrets of at least 32 characters for `JWT_ACCESS_SECRET`. Do not commit `.env` or production credentials.
+
+## Storage policy
+
+Local evidence files are stored under `UPLOAD_DIR` and their metadata is stored in PostgreSQL. A hosted deployment should mount durable storage or replace the local adapter with object storage while keeping the API contract unchanged.
+
+## Documentation
+
+- [API contract](docs/API.md)
+- [Frontend integration guide](docs/FRONTEND_INTEGRATION.md)
