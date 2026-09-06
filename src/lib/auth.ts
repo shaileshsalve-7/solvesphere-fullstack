@@ -31,7 +31,8 @@ export function requireAuth(database: Database, roles?: UserRole[]) {
       return reply.code(401).send({ error: 'unauthorized', message: 'A valid access token is required.' })
     }
     const result = await database.query<AuthUser>(
-      'select id, email, name, role from profiles where id = $1',
+      `select id, email, name, role from profiles
+        where id = $1 and email_verified_at is not null and password_hash is not null`,
       [claims.sub],
     )
     const user = result.rows[0]
@@ -40,5 +41,13 @@ export function requireAuth(database: Database, roles?: UserRole[]) {
       return reply.code(403).send({ error: 'forbidden', message: 'Your account does not have permission for this action.' })
     }
     request.authUser = user
+  }
+}
+
+export function optionalAuth(database: Database) {
+  const authenticate = requireAuth(database)
+  return async function authenticateWhenPresent(request: FastifyRequest, reply: FastifyReply) {
+    if (!request.headers.authorization) return
+    return authenticate(request, reply)
   }
 }

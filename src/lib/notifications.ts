@@ -25,5 +25,23 @@ export async function notifyRole(
   resourceId?: string,
 ) {
   const users = await database.query<{ id: string }>('select id from profiles where role = $1', [role])
-  await Promise.all(users.rows.map((user) => notify(database, user.id, title, body, resourceType, resourceId)))
+  for (const user of users.rows) await notify(database, user.id, title, body, resourceType, resourceId)
+}
+
+export async function notifyTeamMembers(
+  database: Database,
+  teamId: string,
+  title: string,
+  body: string,
+  resourceType?: string,
+  resourceId?: string,
+  excludeUserId?: string,
+) {
+  const members = await database.query<{ user_id: string }>(
+    'select user_id from team_members where team_id = $1',
+    [teamId],
+  )
+  const recipients = [...new Set(members.rows.map((member) => member.user_id))]
+    .filter((userId) => userId !== excludeUserId)
+  for (const userId of recipients) await notify(database, userId, title, body, resourceType, resourceId)
 }

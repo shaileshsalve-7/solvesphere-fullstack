@@ -14,7 +14,9 @@ export async function migrate(database: Database, migrationsDir = resolve(proces
     const existing = await database.query<{ name: string }>('select name from schema_migrations where name = $1', [name])
     if (existing.rows.length) continue
     const sql = await readFile(resolve(migrationsDir, name), 'utf8')
-    await database.exec(sql)
-    await database.query('insert into schema_migrations(name) values($1)', [name])
+    await database.transaction(async (transaction) => {
+      await transaction.exec(sql)
+      await transaction.query('insert into schema_migrations(name) values($1)', [name])
+    })
   }
 }

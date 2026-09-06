@@ -8,6 +8,7 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import type { AppConfig } from './config.js'
 import { createDatabase, type Database } from './db/database.js'
 import { migrate } from './db/migrate.js'
+import { seedDevelopmentData } from './db/seed.js'
 import { accountRoutes } from './routes/account.js'
 import { adminRoutes } from './routes/admin.js'
 import { authRoutes } from './routes/auth.js'
@@ -27,6 +28,7 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
   const ownsDatabase = !options.database
   const database = options.database ?? await createDatabase(options.config)
   if (options.runMigrations !== false) await migrate(database)
+  if (options.runMigrations !== false) await seedDevelopmentData(database, options.config)
   await mkdir(options.config.uploadDir, { recursive: true })
 
   app.decorateRequest('authUser', null)

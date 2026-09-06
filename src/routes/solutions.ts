@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import type { Database } from '../db/database.js'
+import type { AuthUser } from '../lib/auth.js'
 import { requireAuth } from '../lib/auth.js'
 import { conflict, notFound, parse } from '../lib/http.js'
-import { notify, notifyRole } from '../lib/notifications.js'
+import { notify, notifyRole, notifyTeamMembers } from '../lib/notifications.js'
 import { isTeamMember } from '../lib/ownership.js'
 
 const uuidParams = z.object({ id: z.string().uuid() })
@@ -13,8 +14,8 @@ const teamParams = z.object({ teamId: z.string().uuid() })
 const createSchema = z.object({
   title: z.string().trim().min(5).max(180),
   description: z.string().trim().min(30).max(15_000),
-  repositoryUrl: z.string().url().max(500).optional(),
-  demoUrl: z.string().url().max(500).optional(),
+  repositoryUrl: z.string().url().max(500).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'URL must use HTTP or HTTPS.').optional(),
+  demoUrl: z.string().url().max(500).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'URL must use HTTP or HTTPS.').optional(),
 })
 const legacyCreateSchema = createSchema.extend({ teamId: z.string().uuid() })
 const updateSchema = createSchema.partial().refine((value) => Object.keys(value).length > 0, 'At least one field is required')
@@ -66,9 +67,27 @@ async function solutionAccess(database: Database, id: string) {
   return result.rows[0]
 }
 
+async function canViewSolution(database: Database, id: string, user: AuthUser) {
+  if (user.role === 'Admin') return true
+  const result = await database.query<{ status: string; challenge_status: string; owner_id: string; is_member: boolean }>(
+    `select s.status, c.status as challenge_status, c.owner_id,
+            exists(select 1 from team_members tm where tm.team_id = s.team_id and tm.user_id = $2) as is_member
+       from solutions s join teams t on t.id = s.team_id join challenges c on c.id = t.challenge_id
+      where s.id = $1`,
+    [id, user.id],
+  )
+  const solution = result.rows[0]
+  if (!solution) return false
+  const publicChallenge = ['Open', 'In progress', 'Submitted', 'Resolved'].includes(solution.challenge_status)
+  if (!publicChallenge && !solution.is_member && solution.owner_id !== user.id) return false
+  if (solution.is_member) return true
+  if (user.role === 'Mentor') return solution.status !== 'Draft'
+  if (solution.owner_id === user.id && solution.status !== 'Draft') return true
+  return solution.status === 'Approved'
+}
+
 async function notifyTeam(database: Database, teamId: string, title: string, body: string, solutionId: string) {
-  const members = await database.query<{ user_id: string }>('select user_id from team_members where team_id = $1', [teamId])
-  await Promise.all(members.rows.map((member) => notify(database, member.user_id, title, body, 'solution', solutionId)))
+  await notifyTeamMembers(database, teamId, title, body, 'solution', solutionId)
 }
 
 export async function solutionRoutes(app: FastifyInstance, database: Database) {
@@ -77,6 +96,23 @@ export async function solutionRoutes(app: FastifyInstance, database: Database) {
     if (!query) return
     const clauses: string[] = []
     const values: unknown[] = []
+    if (request.authUser!.role !== 'Admin') {
+      values.push(request.authUser!.id)
+      clauses.push(`(
+        c.status in ('Open', 'In progress', 'Submitted', 'Resolved')
+        or c.owner_id = $${values.length}
+        or exists(select 1 from team_members challenge_tm where challenge_tm.team_id = s.team_id and challenge_tm.user_id = $${values.length})
+      )`)
+    }
+    if (request.authUser!.role === 'Student') {
+      values.push(request.authUser!.id)
+      clauses.push(`(exists (select 1 from team_members visible_tm where visible_tm.team_id = s.team_id and visible_tm.user_id = $${values.length}) or s.status = 'Approved')`)
+    } else if (request.authUser!.role === 'Mentor') {
+      clauses.push(`s.status <> 'Draft'`)
+    } else if (request.authUser!.role === 'Citizen') {
+      values.push(request.authUser!.id)
+      clauses.push(`((c.owner_id = $${values.length} and s.status <> 'Draft') or s.status = 'Approved')`)
+    }
     if (query.teamId) { values.push(query.teamId); clauses.push(`s.team_id = $${values.length}`) }
     if (query.challengeId) { values.push(query.challengeId); clauses.push(`t.challenge_id = $${values.length}`) }
     if (query.status) { values.push(query.status); clauses.push(`s.status = $${values.length}`) }
@@ -94,6 +130,7 @@ export async function solutionRoutes(app: FastifyInstance, database: Database) {
     const result = await database.query(`${solutionSelect} where s.id = $1`, [params.id])
     const solution = result.rows[0]
     if (!solution) return notFound(reply, 'Solution')
+    if (!await canViewSolution(database, params.id, request.authUser!)) return notFound(reply, 'Solution')
     const reviews = await database.query(
       `select r.id, r.decision, r.feedback, r.created_at as "createdAt", p.id as "reviewerId", p.name as reviewer
          from solution_reviews r join profiles p on p.id = r.reviewer_id
@@ -148,17 +185,29 @@ export async function solutionRoutes(app: FastifyInstance, database: Database) {
   app.post('/solutions/:id/submit', { preHandler: requireAuth(database, ['Student']) }, async (request, reply) => {
     const params = parse(uuidParams, request.params, reply)
     if (!params) return
-    const solution = await solutionAccess(database, params.id)
-    if (!solution) return notFound(reply, 'Solution')
-    if (!(await isTeamMember(database, solution.team_id, request.authUser!.id))) {
-      return reply.code(403).send({ error: 'forbidden', message: 'Only team members can submit this solution.' })
-    }
-    if (!['Draft', 'Changes requested'].includes(solution.status)) return conflict(reply, 'This solution is not ready for another submission.')
-    await database.query(
-      `update solutions set status = 'Mentor review', submitted_at = now(), reviewed_at = null, updated_at = now() where id = $1`,
-      [params.id],
-    )
-    await notifyRole(database, 'Mentor', 'Solution ready for review', solution.title, 'solution', params.id)
+    const outcome = await database.transaction(async (transaction) => {
+      const result = await transaction.query<{ id: string; team_id: string; status: string; title: string }>(
+        'select id, team_id, status, title from solutions where id = $1 for update',
+        [params.id],
+      )
+      const solution = result.rows[0]
+      if (!solution) return { kind: 'missing' as const }
+      if (!(await isTeamMember(transaction, solution.team_id, request.authUser!.id))) return { kind: 'forbidden' as const }
+      if (!['Draft', 'Changes requested'].includes(solution.status)) return { kind: 'conflict' as const }
+      const updated = await transaction.query(
+        `update solutions set status = 'Mentor review', submitted_at = now(), reviewed_at = null, updated_at = now()
+          where id = $1 and status = $2`,
+        [params.id, solution.status],
+      )
+      if (updated.affectedRows !== 1) return { kind: 'conflict' as const }
+      await notifyRole(transaction, 'Mentor', 'Solution ready for review', solution.title, 'solution', params.id)
+      await notifyRole(transaction, 'Admin', 'Solution submitted', solution.title, 'solution', params.id)
+      await notifyTeamMembers(transaction, solution.team_id, 'Solution submitted', `${solution.title} is awaiting mentor review.`, 'solution', params.id)
+      return { kind: 'submitted' as const }
+    })
+    if (outcome.kind === 'missing') return notFound(reply, 'Solution')
+    if (outcome.kind === 'forbidden') return reply.code(403).send({ error: 'forbidden', message: 'Only team members can submit this solution.' })
+    if (outcome.kind === 'conflict') return conflict(reply, 'This solution is not ready for another submission.')
     return { id: params.id, status: 'Mentor review' }
   })
 
@@ -166,19 +215,30 @@ export async function solutionRoutes(app: FastifyInstance, database: Database) {
     const params = parse(uuidParams, request.params, reply)
     const body = parse(reviewSchema, request.body, reply)
     if (!params || !body) return
-    const solution = await solutionAccess(database, params.id)
-    if (!solution) return notFound(reply, 'Solution')
-    if (solution.status !== 'Mentor review') return conflict(reply, 'Only solutions awaiting mentor review can be reviewed.')
-    await database.query(
-      `insert into solution_reviews(id, solution_id, reviewer_id, decision, feedback)
-       values($1, $2, $3, $4, $5)`,
-      [randomUUID(), params.id, request.authUser!.id, body.decision, body.feedback],
-    )
-    await database.query(
-      'update solutions set status = $1, reviewed_at = now(), updated_at = now() where id = $2',
-      [body.decision, params.id],
-    )
-    await notifyTeam(database, solution.team_id, 'Solution review completed', `${solution.title}: ${body.decision}.`, params.id)
+    const outcome = await database.transaction(async (transaction) => {
+      const result = await transaction.query<{ team_id: string; status: string; title: string }>(
+        'select team_id, status, title from solutions where id = $1 for update',
+        [params.id],
+      )
+      const solution = result.rows[0]
+      if (!solution) return { kind: 'missing' as const }
+      if (solution.status !== 'Mentor review') return { kind: 'conflict' as const }
+      const updated = await transaction.query(
+        `update solutions set status = $1, reviewed_at = now(), updated_at = now()
+          where id = $2 and status = 'Mentor review'`,
+        [body.decision, params.id],
+      )
+      if (updated.affectedRows !== 1) return { kind: 'conflict' as const }
+      await transaction.query(
+        `insert into solution_reviews(id, solution_id, reviewer_id, decision, feedback)
+         values($1, $2, $3, $4, $5)`,
+        [randomUUID(), params.id, request.authUser!.id, body.decision, body.feedback],
+      )
+      await notifyTeam(transaction, solution.team_id, 'Solution review completed', `${solution.title}: ${body.decision}. ${body.feedback}`, params.id)
+      return { kind: 'reviewed' as const }
+    })
+    if (outcome.kind === 'missing') return notFound(reply, 'Solution')
+    if (outcome.kind === 'conflict') return conflict(reply, 'Only solutions awaiting mentor review can be reviewed.')
     return { id: params.id, status: body.decision, feedback: body.feedback }
   })
 
@@ -187,6 +247,7 @@ export async function solutionRoutes(app: FastifyInstance, database: Database) {
     if (!params) return
     const solution = await solutionAccess(database, params.solutionId)
     if (!solution) return notFound(reply, 'Solution')
+    if (!await canViewSolution(database, params.solutionId, request.authUser!)) return notFound(reply, 'Solution')
     const result = await database.query(
       `select u.id, u.summary, u.completion_percent as "completionPercent", u.blockers,
               u.milestone_date as "milestoneDate", u.created_at as "createdAt", p.name as author
@@ -207,15 +268,38 @@ export async function solutionRoutes(app: FastifyInstance, database: Database) {
       return reply.code(403).send({ error: 'forbidden', message: 'Only team members can post progress for this solution.' })
     }
     const id = randomUUID()
-    await database.query(
-      `insert into progress_updates(id, solution_id, author_id, summary, completion_percent, blockers, milestone_date)
-       values($1, $2, $3, $4, $5, $6, $7)`,
-      [id, params.solutionId, request.authUser!.id, body.summary, body.completionPercent, body.blockers ?? null, body.milestoneDate ?? null],
-    )
-    await database.query(
-      `update challenges set readiness = greatest(readiness, $1), updated_at = now() where id = $2`,
-      [body.completionPercent, solution.challenge_id],
-    )
+    await database.transaction(async (transaction) => {
+      await transaction.query(
+        `insert into progress_updates(id, solution_id, author_id, summary, completion_percent, blockers, milestone_date)
+         values($1, $2, $3, $4, $5, $6, $7)`,
+        [id, params.solutionId, request.authUser!.id, body.summary, body.completionPercent, body.blockers ?? null, body.milestoneDate ?? null],
+      )
+      await transaction.query(
+        `update challenges set readiness = greatest(readiness, $1), updated_at = now() where id = $2`,
+        [body.completionPercent, solution.challenge_id],
+      )
+      await notifyTeamMembers(
+        transaction,
+        solution.team_id,
+        'Progress updated',
+        `${solution.title} progress is now ${body.completionPercent}%.`,
+        'solution',
+        params.solutionId,
+        request.authUser!.id,
+      )
+      const challenge = await transaction.query<{ owner_id: string }>('select owner_id from challenges where id = $1', [solution.challenge_id])
+      const ownerId = challenge.rows[0]?.owner_id
+      if (ownerId && ownerId !== request.authUser!.id) {
+        await notify(
+          transaction,
+          ownerId,
+          'Challenge progress updated',
+          `${solution.title} progress is now ${body.completionPercent}%.`,
+          'challenge',
+          solution.challenge_id,
+        )
+      }
+    })
     return reply.code(201).send({ id, ...body, createdAt: new Date().toISOString() })
   })
 }

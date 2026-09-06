@@ -14,10 +14,11 @@ export interface AppConfig {
   accessTokenTtl: string
   refreshTokenDays: number
   devAuthEnabled: boolean
-  devOtpCode?: string
+  devSeedEnabled: boolean
+  devAdminEmail?: string
+  devAdminPassword?: string
   otpDeliveryWebhookUrl?: string
   otpDeliveryApiKey?: string
-  bootstrapAdminEmail?: string
   uploadDir: string
   maxUploadBytes: number
 }
@@ -45,11 +46,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const devAuthEnabled = bool(env.DEV_AUTH_ENABLED, nodeEnv !== 'production')
   if (nodeEnv === 'production' && devAuthEnabled) throw new Error('DEV_AUTH_ENABLED cannot be enabled in production')
-  if (devAuthEnabled && !/^\d{6}$/.test(env.DEV_OTP_CODE ?? '')) {
-    throw new Error('DEV_OTP_CODE must contain exactly 6 digits when development authentication is enabled')
-  }
   if (!devAuthEnabled && !env.OTP_DELIVERY_WEBHOOK_URL) {
     throw new Error('OTP_DELIVERY_WEBHOOK_URL is required when development authentication is disabled')
+  }
+  if (nodeEnv === 'production' && !env.OTP_DELIVERY_WEBHOOK_URL?.startsWith('https://')) {
+    throw new Error('OTP_DELIVERY_WEBHOOK_URL must use HTTPS in production')
+  }
+  const devSeedEnabled = bool(env.DEV_SEED_ENABLED, false)
+  if (nodeEnv === 'production' && devSeedEnabled) throw new Error('DEV_SEED_ENABLED cannot be enabled in production')
+  if (devSeedEnabled && !emailPattern.test(env.DEV_ADMIN_EMAIL ?? '')) {
+    throw new Error('DEV_ADMIN_EMAIL must be a valid email when development seed data is enabled')
+  }
+  if (devSeedEnabled && !strongPassword(env.DEV_ADMIN_PASSWORD ?? '')) {
+    throw new Error('DEV_ADMIN_PASSWORD must be at least 8 characters and include upper, lower, number, and symbol')
   }
   if (databaseMode === 'postgres' && !env.DATABASE_URL) throw new Error('DATABASE_URL is required for postgres mode')
 
@@ -65,11 +74,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     accessTokenTtl: env.ACCESS_TOKEN_TTL ?? '15m',
     refreshTokenDays: int(env.REFRESH_TOKEN_DAYS, 7, 'REFRESH_TOKEN_DAYS'),
     devAuthEnabled,
-    devOtpCode: env.DEV_OTP_CODE,
+    devSeedEnabled,
+    devAdminEmail: env.DEV_ADMIN_EMAIL?.trim().toLowerCase() || undefined,
+    devAdminPassword: env.DEV_ADMIN_PASSWORD,
     otpDeliveryWebhookUrl: env.OTP_DELIVERY_WEBHOOK_URL,
     otpDeliveryApiKey: env.OTP_DELIVERY_API_KEY,
-    bootstrapAdminEmail: env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || undefined,
     uploadDir: resolve(env.UPLOAD_DIR ?? './uploads'),
     maxUploadBytes: int(env.MAX_UPLOAD_BYTES, 10 * 1024 * 1024, 'MAX_UPLOAD_BYTES'),
   }
+}
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function strongPassword(value: string) {
+  return value.length >= 8 && Buffer.byteLength(value, 'utf8') <= 72 && /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value)
 }

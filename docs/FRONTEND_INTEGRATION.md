@@ -1,33 +1,40 @@
-# Frontend integration guide
+# Frontend integration
 
-Reference frontend: [github.com/shubhamkadam2737-jpg/solvesphere](https://github.com/shubhamkadam2737-jpg/solvesphere)
+Set the frontend environment:
 
-The current frontend is a Vite/React/TypeScript prototype. Its `src/services/api.ts` already defaults to `http://localhost:4000/api`, but most screens import `src/data/mockData.ts` directly and their buttons are not connected to handlers.
+```dotenv
+VITE_API_URL=http://localhost:4000/api
+```
 
-## Required frontend changes
+## Credential flow
 
-1. Set `VITE_API_URL=http://localhost:4000/api` in the frontend `.env.local`.
-2. In `src/types/index.ts`, change challenge IDs from `number` to `string`. Team, solution, evidence, user, and notification IDs are also UUID strings.
-3. Replace demo login. The UI must call `/auth/request-code`, then `/auth/verify-code`. Remove the role selector; the verified response supplies the server role.
-4. Store the access token in memory where possible and store the rotating refresh token using an agreed secure browser-session strategy. Add a response interceptor that calls `/auth/refresh` once after a 401 and replaces both tokens.
-5. Replace direct `mockData` imports in Dashboard, Challenges, ChallengeDetails, Teams, Solutions, Notifications, Profile, and Admin with API queries.
-6. Connect the Report challenge, Create team, Join team, Submit solution, Review, evidence upload, progress, and notification buttons to the documented endpoints.
-7. Use `multipart/form-data` with a `file` field and optional `caption` for challenge evidence.
-8. Render server validation errors and `403` permission errors. Do not derive authorization from the selected screen role.
+1. Create account with `POST /auth/signup` and `name`, `email`, `password`, and `role` (`Citizen`, `Student`, or `Mentor`).
+2. Show the verification screen. If `delivery === "development"`, display `developmentCode` with the label **Local development code — no email was sent**. Never assume this property exists in production.
+3. Send `{ email, code }` to `POST /auth/verify-email`. The response is a normal session and includes the authoritative server role.
+4. Returning users call `POST /auth/login` with email/password.
+5. Store the returned access and refresh tokens using the existing session strategy. On one 401, call `/auth/refresh`, replace both tokens, and retry once. Logout calls `/auth/logout` and clears local session state even if the request fails.
 
-## Existing helper compatibility
+Map these server errors to forms: `validation_error`, `email_exists`, `invalid_credentials`, `email_not_verified`, and `invalid_code`. An unverified login should offer `POST /auth/resend-verification`.
 
-The backend supports the endpoints already declared in `src/services/api.ts`:
+The server rejects Admin signup. The local Admin account exists only when development seeding is enabled; it uses the documented demo credentials in the backend README.
 
-- `GET /challenges`
-- `POST /challenges`
-- `PATCH /challenges/:id/status`
-- `GET /solutions`
-- `POST /solutions` when the body includes `teamId`
-- `PATCH /solutions/:id/review`
+## Visibility and role rules
 
-The frontend still needs helpers for authentication, refresh/logout, challenge details/editing/evidence, team membership, solution editing/submission, progress, profiles, notifications, dashboards, and administration.
+- Use `GET /challenges` for public discovery and `GET /challenges?mine=true` for a Citizen's pending/denied submissions.
+- Admin moderation must load `/admin/challenges`; the public collection intentionally omits pending and denied records.
+- Students can create/join teams only for open or in-progress challenges.
+- Solution collections are server-scoped. Students receive their team drafts plus approved public work; Mentors receive submitted/reviewed solutions; Admins receive all.
+- Show permission messages from server 403 responses. Treat scoped 404 responses as unavailable records.
+- Never derive authority only from a client-selected role. The user returned by login/refresh/me is authoritative.
 
-## Known frontend-only blockers
+## Main API helpers
 
-The reference frontend currently starts in Vite development mode, but its production build fails on TypeScript inference in `Home.tsx` and `Dashboard.tsx`. Backend verification does not fix or conceal those errors. Full browser end-to-end validation should happen only after the frontend owner completes API wiring and resolves its own build issues.
+- Challenges: list/mine/details/create/edit/status/evidence
+- Teams: list/details/create/join/leave
+- Solutions: list/details/create/edit/submit/review/progress
+- Account: profile, dashboard, notifications, read/read-all
+- Admin: overview, users/roles, challenges, teams, solutions, reviews
+
+Uploads use multipart form data with a `file` field and optional `caption`. Do not set the multipart boundary manually in Axios.
+
+All entity identifiers are UUID strings. Render API loading, empty, validation, authorization, and unexpected-error states; do not fall back to mock records when a request fails.
