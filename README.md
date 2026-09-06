@@ -2,7 +2,7 @@
 
 Node.js and TypeScript API for **SIH26043 — Platform to Crowdsource Societal Challenges and Collaborative Problem Solving**.
 
-This backend belongs on the `codex/solvesphere-backend` branch of [shubhamkadam2737-jpg/solvesphere](https://github.com/shubhamkadam2737-jpg/solvesphere). The React frontend is maintained on `codex/solvesphere-frontend`.
+This backend belongs on the `codex/solvesphere-backend` branch of [shaileshsalve-7/solvesphere-fullstack](https://github.com/shaileshsalve-7/solvesphere-fullstack). The React frontend is maintained on `codex/solvesphere-frontend`; its original commit history is preserved from [shubhamkadam2737-jpg/solvesphere](https://github.com/shubhamkadam2737-jpg/solvesphere).
 
 ## Implemented workflow
 
