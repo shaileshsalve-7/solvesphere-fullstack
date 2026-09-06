@@ -1,7 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type {
-  AdminOverview, Challenge, ChallengeStatus, DashboardSummary, Notification, Priority,
-  ProgressUpdate, Solution, Team, User, UserRole,
+  AdminOverview, AdminReview, AuthSession, Challenge, ChallengeStatus, DashboardSummary, Notification, Priority,
+  ProgressUpdate, PublicSignupRole, Solution, Team, User, UserRole, VerificationDelivery,
 } from '../types'
 
 const ACCESS_KEY = 'ss_access_token'
@@ -18,7 +18,7 @@ export function getStoredUser(): User | null {
   try { return JSON.parse(localStorage.getItem(USER_KEY) ?? 'null') as User | null } catch { return null }
 }
 
-export function storeSession(session: { accessToken: string; refreshToken: string; user: User }) {
+export function storeSession(session: AuthSession) {
   localStorage.setItem(ACCESS_KEY, session.accessToken)
   localStorage.setItem(REFRESH_KEY, session.refreshToken)
   localStorage.setItem(USER_KEY, JSON.stringify(session.user))
@@ -56,19 +56,29 @@ api.interceptors.response.use(undefined, async (error: AxiosError) => {
 })
 
 export function apiError(error: unknown) {
-  if (axios.isAxiosError(error)) return (error.response?.data as { message?: string } | undefined)?.message ?? error.message
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: string; error?: string } | undefined
+    return data?.message ?? data?.error ?? error.message
+  }
   return error instanceof Error ? error.message : 'The request could not be completed.'
 }
 
+export function apiErrorCode(error: unknown) {
+  if (!axios.isAxiosError(error)) return undefined
+  return (error.response?.data as { error?: string } | undefined)?.error
+}
+
 export const authApi = {
-  requestCode: (email: string) => api.post<{ ok: boolean; delivery: 'development' | 'email'; expiresInSeconds: number }>('/auth/request-code', { email }).then((r) => r.data),
-  verifyCode: (email: string, code: string) => api.post<{ accessToken: string; refreshToken: string; user: User }>('/auth/verify-code', { email, code }).then((r) => r.data),
+  signup: (payload: { name: string; email: string; password: string; role: PublicSignupRole }) => api.post<VerificationDelivery>('/auth/signup', payload).then((r) => r.data),
+  verifyEmail: (email: string, code: string) => api.post<AuthSession>('/auth/verify-email', { email, code }).then((r) => r.data),
+  resendVerification: (email: string) => api.post<VerificationDelivery>('/auth/resend-verification', { email }).then((r) => r.data),
+  login: (email: string, password: string) => api.post<AuthSession>('/auth/login', { email, password }).then((r) => r.data),
   me: () => api.get<{ user: User }>('/auth/me').then((r) => r.data.user),
   logout: (refreshToken: string) => api.post('/auth/logout', { refreshToken }),
 }
 
 export const challengeApi = {
-  list: (params?: { q?: string; status?: ChallengeStatus; priority?: Priority; category?: string; limit?: number }) => api.get<{ items: Challenge[] }>('/challenges', { params }).then((r) => r.data.items),
+  list: (params?: { q?: string; status?: ChallengeStatus; priority?: Priority; category?: string; limit?: number; mine?: boolean }) => api.get<{ items: Challenge[] }>('/challenges', { params }).then((r) => r.data.items),
   get: (id: string) => api.get<Challenge>(`/challenges/${id}`).then((r) => r.data),
   create: (payload: { title: string; description: string; category: string; location: string; priority: Priority }) => api.post<Challenge>('/challenges', payload).then((r) => r.data),
   updateStatus: (id: string, status: ChallengeStatus, reason?: string) => api.patch<{ id: string; status: ChallengeStatus }>(`/challenges/${id}/status`, { status, reason }).then((r) => r.data),
@@ -79,6 +89,7 @@ export const challengeApi = {
     if (caption) form.append('caption', caption)
     return api.post(`/challenges/${id}/evidence`, form, { headers: { 'Content-Type': undefined } }).then((r) => r.data)
   },
+  downloadEvidence: (id: string) => api.get<Blob>(`/evidence/${id}/download`, { responseType: 'blob' }).then((r) => r.data),
 }
 
 export const teamApi = {
@@ -93,6 +104,7 @@ export const solutionApi = {
   list: (params?: { teamId?: string; challengeId?: string; status?: Solution['status']; mine?: boolean }) => api.get<{ items: Solution[] }>('/solutions', { params }).then((r) => r.data.items),
   get: (id: string) => api.get<Solution>(`/solutions/${id}`).then((r) => r.data),
   create: (teamId: string, payload: { title: string; description: string; repositoryUrl?: string; demoUrl?: string }) => api.post<Solution>(`/teams/${teamId}/solutions`, payload).then((r) => r.data),
+  update: (id: string, payload: { title?: string; description?: string; repositoryUrl?: string; demoUrl?: string }) => api.patch<Solution>(`/solutions/${id}`, payload).then((r) => r.data),
   submit: (id: string) => api.post<{ id: string; status: Solution['status'] }>(`/solutions/${id}/submit`, {}).then((r) => r.data),
   review: (id: string, payload: { decision: 'Approved' | 'Changes requested'; feedback: string }) => api.patch(`/solutions/${id}/review`, payload).then((r) => r.data),
   progress: (id: string) => api.get<{ items: ProgressUpdate[] }>(`/solutions/${id}/progress`).then((r) => r.data.items),
@@ -110,6 +122,10 @@ export const accountApi = {
 
 export const adminApi = {
   users: () => api.get<{ items: User[] }>('/admin/users').then((r) => r.data.items),
-  setRole: (id: string, role: UserRole) => api.patch<User>(`/admin/users/${id}/role`, { role }).then((r) => r.data),
+  setRole: (id: string, role: UserRole) => api.patch<Pick<User, 'id' | 'role'>>(`/admin/users/${id}/role`, { role }).then((r) => r.data),
   overview: () => api.get<AdminOverview>('/admin/overview').then((r) => r.data),
+  challenges: () => api.get<{ items: Challenge[] }>('/admin/challenges').then((r) => r.data.items),
+  teams: () => api.get<{ items: Team[] }>('/admin/teams').then((r) => r.data.items),
+  solutions: () => api.get<{ items: Solution[] }>('/admin/solutions').then((r) => r.data.items),
+  reviews: () => api.get<{ items: AdminReview[] }>('/admin/reviews').then((r) => r.data.items),
 }

@@ -1,11 +1,12 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import type { UserRole } from '../types'
 
 export function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: UserRole[] }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <main className="center-state">Checking your session…</main>
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }

@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { User } from '../types'
+import type { PublicSignupRole, User } from '../types'
 import { auth } from '../services/auth'
 import { storeUser } from '../services/api'
 
 type AuthContextValue = {
   user: User | null
   loading: boolean
-  requestCode: (email: string) => ReturnType<typeof auth.requestCode>
-  login: (email: string, code: string) => Promise<void>
+  signup: (payload: { name: string; email: string; password: string; role: PublicSignupRole }) => ReturnType<typeof auth.signup>
+  resendVerification: (email: string) => ReturnType<typeof auth.resendVerification>
+  verifyEmail: (email: string, code: string) => Promise<User>
+  login: (email: string, password: string) => Promise<User>
   logout: () => Promise<void>
   updateUser: (user: User) => void
 }
@@ -27,8 +29,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     user,
     loading,
-    requestCode: auth.requestCode,
-    login: async (email, code) => setUser(await auth.verifyCode(email, code)),
+    signup: auth.signup,
+    resendVerification: auth.resendVerification,
+    verifyEmail: async (email, code) => { const verified = await auth.verifyEmail(email, code); setUser(verified); return verified },
+    login: async (email, password) => { const signedIn = await auth.login(email, password); setUser(signedIn); return signedIn },
     logout: async () => { await auth.logout(); setUser(null) },
     updateUser: (updated) => { storeUser(updated); setUser(updated) },
   }), [loading, user])

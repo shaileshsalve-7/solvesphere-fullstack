@@ -28,6 +28,6 @@ export function Notifications() {
     <div className="page-head"><div><span className="eyebrow">Stay informed</span><h1>Notifications</h1><p>Keep track of challenge, team and review activity.</p></div><button className="btn btn-secondary" onClick={readAll}>Mark all read</button></div>
     {error && <ErrorBanner message={error}/>}
     {success && <SuccessBanner message={success}/>}
-    {loading ? <Loading/> : items.length ? <div className="panel">{items.map((item) => <div className={`row notification ${item.readAt ? '' : 'unread'}`} key={item.id}><div><b>{item.title}</b><small>{item.body} • {new Date(item.createdAt).toLocaleString()}</small></div>{!item.readAt && <button className="btn btn-secondary" onClick={() => read(item.id)}>Mark read</button>}</div>)}</div> : <Empty message="You have no notifications."/>}
+    {loading ? <Loading/> : items.length ? <div className="panel">{items.map((item) => <div className={`row notification ${item.readAt ? '' : 'unread'}`} data-notification-id={item.id} key={item.id}><div><b>{item.title}</b><small>{item.body} • {new Date(item.createdAt).toLocaleString()}</small></div>{!item.readAt && <button className="btn btn-secondary" data-action="read-notification" onClick={() => read(item.id)}>Mark read</button>}</div>)}</div> : <Empty message="You have no notifications."/>}
   </section>
 }

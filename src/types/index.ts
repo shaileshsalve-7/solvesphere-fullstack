@@ -2,6 +2,22 @@ export type UserRole = 'Citizen' | 'Student' | 'Mentor' | 'Admin'
 export type ChallengeStatus = 'Open' | 'Under review' | 'In progress' | 'Submitted' | 'Resolved' | 'Denied'
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'
 export type SolutionStatus = 'Draft' | 'Mentor review' | 'Approved' | 'Changes requested'
+export type PublicSignupRole = Exclude<UserRole, 'Admin'>
+
+export interface AuthSession {
+  accessToken: string
+  refreshToken: string
+  user: User
+}
+
+export interface VerificationDelivery {
+  ok: true
+  email: string
+  verificationRequired: true
+  delivery: 'development' | 'email'
+  expiresInSeconds: number
+  developmentCode?: string
+}
 
 export interface User {
   id: string
@@ -24,6 +40,7 @@ export interface Challenge {
   readiness: number
   teams: number
   owner: string
+  ownerEmail?: string
   ownerId: string
   evidence: number
   createdAt: string
@@ -34,7 +51,6 @@ export interface Challenge {
 export interface TeamMember {
   id: string
   name: string
-  email: string
   role: UserRole
   memberRole: 'Owner' | 'Member'
   joinedAt: string
@@ -52,6 +68,7 @@ export interface Team {
   createdAt: string
   updatedAt: string
   memberList?: TeamMember[]
+  solutions?: number
 }
 
 export interface SolutionReview {
@@ -76,6 +93,10 @@ export interface Solution {
   createdBy: string
   status: SolutionStatus
   feedback?: string | null
+  latestFeedback?: string | null
+  creator?: string
+  creatorEmail?: string
+  reviewCount?: number
   submittedAt?: string | null
   reviewedAt?: string | null
   createdAt: string
@@ -116,4 +137,24 @@ export interface AdminOverview {
   challengesByStatus: Array<{ status: ChallengeStatus; count: number }>
   activeTeams: number
   solutionsByStatus: Array<{ status: SolutionStatus; count: number }>
+  totalUsers?: number
+  totalChallenges?: number
+  totalSolutions?: number
+  totalReviews?: number
+  evidenceFiles?: number
+  progressUpdates?: number
+}
+
+export interface AdminReview {
+  id: string
+  solutionId: string
+  solution?: string
+  decision: 'Approved' | 'Changes requested'
+  feedback: string
+  reviewerId: string
+  reviewer: string
+  reviewerEmail?: string
+  teamId?: string
+  challengeId?: string
+  createdAt: string
 }

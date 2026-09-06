@@ -14,10 +14,10 @@ export function Home() {
   return <div className="public-page">
     <header className="public-nav">
       <Link to="/" className="brand"><Logo/><span><b>SolveSphere</b><small>Identify. Connect. Solve.</small></span></Link>
-      <div className="actions"><Link to="/challenges">Explore challenges</Link><Link className="btn btn-primary" to="/login">Get started <ArrowRight size={15}/></Link></div>
+      <div className="actions"><Link to="/challenges">Explore challenges</Link><Link to="/login">Sign in</Link><Link className="btn btn-primary" to="/signup">Create account <ArrowRight size={15}/></Link></div>
     </header>
     <section className="hero">
-      <div><span className="eyebrow">SIH26043 • Civic innovation</span><h1>Turn real-world problems into <em>measurable solutions.</em></h1><p>SolveSphere connects citizens who report problems with students, mentors and teams who can build practical solutions.</p><div className="hero-actions"><Link className="btn btn-primary" to="/login">Start solving <ArrowRight size={16}/></Link><Link className="text-link" to="/challenges">View challenges</Link></div></div>
+      <div><span className="eyebrow">SIH26043 • Civic innovation</span><h1>Turn real-world problems into <em>measurable solutions.</em></h1><p>SolveSphere connects citizens who report problems with students, mentors and teams who can build practical solutions.</p><div className="hero-actions"><Link className="btn btn-primary" to="/signup">Start solving <ArrowRight size={16}/></Link><Link className="text-link" to="/challenges">View challenges</Link></div></div>
       <div className="hero-card"><Logo size={180}/><div><strong>Identify Problems.</strong><br/>Connect People. Build Solutions. Create Measurable Impact.</div></div>
     </section>
     <section className="features">{features.map(({ Icon, title, description }) => <article key={title}><Icon size={22}/><h3>{title}</h3><p>{description}</p></article>)}</section>
