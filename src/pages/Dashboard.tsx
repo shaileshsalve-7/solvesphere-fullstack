@@ -29,7 +29,7 @@ export function Dashboard() {
   ] : []
 
   return <section className="page">
-    <div className="page-head"><div><span className="eyebrow">{user?.role} workspace</span><h1>Good to see you, {user?.name}.</h1><p>Track civic challenges, collaboration and measurable progress.</p></div><Link className="btn btn-primary" to="/challenges">Explore challenges</Link></div>
+    <div className="page-head"><div><span className="eyebrow">{user?.role} workspace</span><h1>Good to see you, {user?.name}.</h1><p>Track civic challenges, collaboration and measurable progress.</p></div><Link className="btn btn-primary" data-testid={user?.role === 'Citizen' ? 'report-challenge-action' : undefined} to={user?.role === 'Citizen' ? '/challenges?report=1' : '/challenges'}>{user?.role === 'Citizen' ? 'Report challenge with evidence' : 'Explore challenges'}</Link></div>
     {error && <ErrorBanner message={error}/>}
     <div className="stats">{stats.map(({ Icon, label, value }) => <article key={label}><Icon size={20}/><small>{label}</small><strong>{value}</strong></article>)}</div>
     <div className="grid">

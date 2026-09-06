@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Empty, ErrorBanner, Loading, SuccessBanner } from '../components/States'
 import { useAuth } from '../context/AuthContext'
 import { challengeApi, apiError } from '../services/api'
@@ -9,11 +9,14 @@ const initialForm = { title: '', description: '', category: '', location: '', pr
 
 export function Challenges() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
-  const [showForm, setShowForm] = useState(false)
+  const [showForm, setShowForm] = useState(searchParams.get('report') === '1')
   const [form, setForm] = useState(initialForm)
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null)
+  const [evidenceCaption, setEvidenceCaption] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -39,8 +42,10 @@ export function Challenges() {
   async function create(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError(''); setSuccess('')
     try {
-      await challengeApi.create(form)
-      setForm(initialForm); setShowForm(false); setSuccess('Challenge submitted for administrator review.'); await load()
+      const created = await challengeApi.create(form)
+      if (evidenceFile) await challengeApi.uploadEvidence(created.id, evidenceFile, evidenceCaption)
+      setForm(initialForm); setEvidenceFile(null); setEvidenceCaption(''); setShowForm(false)
+      setSuccess(evidenceFile ? 'Challenge and evidence submitted for administrator review.' : 'Challenge submitted for administrator review.'); await load()
     } catch (requestError) { setError(apiError(requestError)) }
     finally { setBusy(false) }
   }
@@ -56,6 +61,8 @@ export function Challenges() {
       <label>Location<input name="location" value={form.location} onChange={({ target: { value } }) => setForm((current) => ({ ...current, location: value }))} required/></label>
       <label>Priority<select name="priority" value={form.priority} onChange={({ target: { value } }) => setForm((current) => ({ ...current, priority: value as Priority }))}><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></label>
       <label className="span-2">Description<textarea name="description" value={form.description} onChange={({ target: { value } }) => setForm((current) => ({ ...current, description: value }))} minLength={30} maxLength={10000} required/></label>
+      <label className="span-2">Evidence image, video, or PDF (optional)<input data-testid="challenge-evidence-input" name="evidence" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,application/pdf" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)}/><small className="field-help">Accepted: JPG, PNG, WebP, MP4, or PDF up to 10 MB.</small></label>
+      {evidenceFile && <label className="span-2">Evidence caption<input name="evidenceCaption" value={evidenceCaption} onChange={(event) => setEvidenceCaption(event.target.value)} maxLength={500}/></label>}
       <button className="btn btn-primary" disabled={busy}>{busy ? 'Submitting…' : 'Submit for review'}</button>
     </form>}
     <div className="filters"><input placeholder="Search challenges or locations" value={query} onChange={(event) => setQuery(event.target.value)}/><select value={category} onChange={(event) => setCategory(event.target.value)}><option>All</option>{categories.map((item) => <option key={item}>{item}</option>)}</select></div>

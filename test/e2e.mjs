@@ -317,6 +317,7 @@ try {
 
   stage('Citizen signup and verification')
   await signup('Citizen', citizen)
+  await page.waitForSelector('[data-testid="report-challenge-action"]', { visible: true })
 
   stage('Citizen profile update')
   await clickLink('/profile')
@@ -333,6 +334,7 @@ try {
   console.log('[detail] challenge list ready')
   await clickButton('Report challenge')
   await page.waitForSelector('[data-testid="challenge-form"]', { visible: true })
+  await page.waitForSelector('[data-testid="challenge-evidence-input"]', { visible: true })
   console.log('[detail] challenge form opened')
   await fill('[data-testid="challenge-form"] input[name="title"]', challengeTitle)
   await fill('[data-testid="challenge-form"] input[name="category"]', 'Public Infrastructure')
@@ -342,23 +344,20 @@ try {
     '[data-testid="challenge-form"] textarea[name="description"]',
     'Students cross a fast road without a working signal during busy school arrival and departure times.',
   )
+  const reportEvidenceInput = await page.$('[data-testid="challenge-evidence-input"]')
+  assert.ok(reportEvidenceInput, 'Evidence file input was not rendered in the Citizen report form.')
+  await reportEvidenceInput.uploadFile(evidencePath)
+  await fill('[data-testid="challenge-form"] input[name="evidenceCaption"]', 'School-hour traffic observation from the reported location.')
   console.log('[detail] challenge form filled')
   await clickButton('Submit for review', '[data-testid="challenge-form"]')
   console.log('[detail] challenge submit clicked')
-  await waitForText('Challenge submitted for administrator review.')
+  await waitForText('Challenge and evidence submitted for administrator review.')
   await waitForText(challengeTitle)
   const challenge = { id: await findEntityId('data-challenge-id', challengeTitle) }
   await waitForText('Under review', '[data-challenge-id="' + challenge.id + '"]')
 
   await goto('/challenges/' + challenge.id)
   await waitForText(challengeTitle)
-  await page.waitForSelector('form.compact-form input[type="file"]', { visible: true })
-  const uploadInput = await page.$('form.compact-form input[type="file"]')
-  assert.ok(uploadInput, 'Evidence file input was not rendered for the challenge owner.')
-  await uploadInput.uploadFile(evidencePath)
-  await fill('form.compact-form input:not([type="file"])', 'School-hour traffic observation from the reported location.')
-  await clickButton('Upload', 'form.compact-form')
-  await waitForText('Evidence uploaded.')
   await waitForText('crossing-observation.pdf')
 
   stage('Admin login and challenge approval')
