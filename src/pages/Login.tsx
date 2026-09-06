@@ -54,6 +54,7 @@ export function Login() {
         {errorCode === 'email_not_verified' && <Link className="text-link" to={`/signup?verify=1&email=${encodeURIComponent(email.trim())}`}>Verify this email</Link>}
         <button className="btn btn-primary" data-testid="login-submit" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
+      <p className="info" data-testid="admin-login-hint"><strong>Administrator?</strong> Use this same sign-in form with your provisioned Admin account.</p>
       <p className="auth-switch">New to SolveSphere? <Link className="text-link" to="/signup">Create an account</Link></p>
       <Link className="text-link auth-home" to="/">← Back to home</Link>
     </section>

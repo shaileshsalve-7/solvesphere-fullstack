@@ -312,6 +312,7 @@ try {
   await page.goto(appUrl('/dashboard'), { waitUntil: 'domcontentloaded', timeout: 20_000 })
   await waitForPath('/login')
   await page.waitForSelector('[data-testid="login-form"]', { visible: true })
+  await waitForText('Administrator?', '[data-testid="admin-login-hint"]')
   assert.equal(new URL(page.url()).pathname, '/login', 'A protected route must redirect an anonymous visitor.')
 
   stage('Citizen signup and verification')
