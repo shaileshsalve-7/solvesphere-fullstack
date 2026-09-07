@@ -1,5 +1,5 @@
 export type UserRole = 'Citizen' | 'Student' | 'Mentor' | 'Admin'
-export type ChallengeStatus = 'Open' | 'Under review' | 'In progress' | 'Submitted' | 'Resolved' | 'Denied'
+export type ChallengeStatus = 'Under review' | 'Published' | 'In progress' | 'Implemented' | 'Rejected'
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'
 export type SolutionStatus = 'Draft' | 'Mentor review' | 'Approved' | 'Changes requested'
 export type PublicSignupRole = Exclude<UserRole, 'Admin'>

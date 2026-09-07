@@ -268,6 +268,10 @@ async function signup(role, account) {
 
 async function login(email, password, expectedRole) {
   await goto('/login')
+  if (expectedRole === 'Admin') {
+    await click('[data-testid="admin-login-option"]')
+    await waitForText('Admin sign in')
+  }
   await fill('[data-testid="login-form"] input[name="email"]', email)
   await fill('[data-testid="login-form"] input[name="password"]', password)
   await click('[data-testid="login-submit"]')
@@ -362,6 +366,13 @@ try {
 
   stage('Admin login and challenge approval')
   await logout()
+  await goto('/login')
+  await click('[data-testid="admin-login-option"]')
+  await fill('[data-testid="login-form"] input[name="email"]', citizen.email)
+  await fill('[data-testid="login-form"] input[name="password"]', userPassword)
+  await click('[data-testid="login-submit"]')
+  await waitForText('This account does not have admin access.', '[role="alert"]')
+  await waitForPath('/login')
   await login(adminEmail, adminPassword, 'Admin')
   await page.waitForSelector('[data-testid="admin-challenges"]', { visible: true })
   await waitForText(challengeTitle, '[data-testid="admin-challenges"]')
@@ -372,11 +383,11 @@ try {
   }, challengeTitle)
   assert.equal(moderationRowId, challenge.id, 'The citizen report must be visible in the admin console.')
 
-  await click('[data-challenge-id="' + challenge.id + '"] button[data-action="status-open"]')
+  await click('[data-challenge-id="' + challenge.id + '"] button[data-action="status-published"]')
   await waitForText('Challenge approved and published.')
   await page.waitForFunction((id) => {
     const row = document.querySelector('[data-challenge-id="' + id + '"]')
-    return Boolean(row?.textContent?.includes('Open') && !row.querySelector('[data-action="status-open"]'))
+    return Boolean(row?.textContent?.includes('Published') && !row.querySelector('[data-action="status-published"]'))
   }, { timeout: 20_000 }, challenge.id)
 
   stage('Student signup, team, and solution submission')
@@ -524,19 +535,19 @@ try {
   await waitForText(progressSummary, '[data-solution-id="' + solution.id + '"]')
   await waitForText('Approved', '[data-solution-id="' + solution.id + '"]')
 
-  stage('Admin inspection and challenge resolution')
+  stage('Admin inspection and implementation approval')
   await logout()
   await login(adminEmail, adminPassword, 'Admin')
   await waitForText(teamName, '[data-testid="admin-teams"]')
   await waitForText(solutionTitle, '[data-testid="admin-solutions"]')
   await waitForText(reviewFeedback, '[data-testid="admin-reviews"]')
   await waitForText(challengeTitle, '[data-testid="admin-challenges"]')
-  await click('[data-challenge-id="' + challenge.id + '"] button[data-action="status-resolved"]')
-  await waitForText('Challenge moved to Resolved.')
+  await click('[data-challenge-id="' + challenge.id + '"] button[data-action="status-implemented"]')
+  await waitForText('Final implementation status approved.')
   await page.waitForFunction((id) => {
     const row = document.querySelector('[data-challenge-id="' + id + '"]')
     const status = row?.querySelector('.admin-status-actions > .badge')?.textContent?.trim()
-    return status === 'Resolved' && !row?.querySelector('[data-action="status-resolved"]')
+    return status === 'Implemented' && !row?.querySelector('[data-action="status-implemented"]')
   }, { timeout: 20_000 }, challenge.id)
 
   await logout()

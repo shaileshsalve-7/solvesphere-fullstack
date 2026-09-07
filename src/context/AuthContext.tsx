@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { PublicSignupRole, User } from '../types'
+import type { PublicSignupRole, User, UserRole } from '../types'
 import { auth } from '../services/auth'
 import { storeUser } from '../services/api'
 
@@ -9,7 +9,7 @@ type AuthContextValue = {
   signup: (payload: { name: string; email: string; password: string; role: PublicSignupRole }) => ReturnType<typeof auth.signup>
   resendVerification: (email: string) => ReturnType<typeof auth.resendVerification>
   verifyEmail: (email: string, code: string) => Promise<User>
-  login: (email: string, password: string) => Promise<User>
+  login: (email: string, password: string, requiredRole?: UserRole) => Promise<User>
   logout: () => Promise<void>
   updateUser: (user: User) => void
 }
@@ -32,7 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signup: auth.signup,
     resendVerification: auth.resendVerification,
     verifyEmail: async (email, code) => { const verified = await auth.verifyEmail(email, code); setUser(verified); return verified },
-    login: async (email, password) => { const signedIn = await auth.login(email, password); setUser(signedIn); return signedIn },
+    login: async (email, password, requiredRole) => {
+      const signedIn = await auth.login(email, password)
+      if (requiredRole && signedIn.role !== requiredRole) {
+        await auth.logout()
+        throw new Error(`This account does not have ${requiredRole.toLowerCase()} access.`)
+      }
+      setUser(signedIn)
+      return signedIn
+    },
     logout: async () => { await auth.logout(); setUser(null) },
     updateUser: (updated) => { storeUser(updated); setUser(updated) },
   }), [loading, user])

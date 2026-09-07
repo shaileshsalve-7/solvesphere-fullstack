@@ -5,17 +5,17 @@ import type { AdminOverview, AdminReview, Challenge, ChallengeStatus, Solution, 
 
 const roles: UserRole[] = ['Citizen', 'Student', 'Mentor', 'Admin']
 const statusTransitions: Record<ChallengeStatus, ChallengeStatus[]> = {
-  'Under review': ['Open', 'Denied'],
-  Open: ['In progress', 'Denied'],
-  'In progress': ['Submitted', 'Resolved', 'Denied'],
-  Submitted: ['Resolved', 'In progress', 'Denied'],
-  Denied: ['Under review'],
-  Resolved: [],
+  'Under review': ['Published', 'Rejected'],
+  Published: ['In progress', 'Rejected'],
+  'In progress': ['Implemented', 'Rejected'],
+  Rejected: ['Under review'],
+  Implemented: [],
 }
 
 function statusLabel(current: ChallengeStatus, next: ChallengeStatus) {
-  if (current === 'Under review' && next === 'Open') return 'Approve & publish'
-  if (next === 'Denied') return 'Reject'
+  if (current === 'Under review' && next === 'Published') return 'Approve & publish'
+  if (next === 'Implemented') return 'Final approval: implemented'
+  if (next === 'Rejected') return 'Reject'
   if (next === 'Under review') return 'Return to review'
   return `Move to ${next}`
 }
@@ -70,13 +70,13 @@ export function Admin() {
   async function moderate(id: string, status: ChallengeStatus) {
     setBusyId(`challenge-${id}`); setError(''); setSuccess('')
     try {
-      const reason = status === 'Denied'
+      const reason = status === 'Rejected'
         ? 'Rejected from the administrator console.'
-        : status === 'Open'
+        : status === 'Published'
           ? 'Verified and published by an administrator.'
           : `Moved to ${status} from the administrator console.`
       await challengeApi.updateStatus(id, status, reason)
-      setSuccess(status === 'Open' ? 'Challenge approved and published.' : `Challenge moved to ${status}.`)
+      setSuccess(status === 'Published' ? 'Challenge approved and published.' : status === 'Implemented' ? 'Final implementation status approved.' : `Challenge moved to ${status}.`)
       await load(false)
     } catch (requestError) {
       setError(apiError(requestError))
@@ -97,7 +97,7 @@ export function Admin() {
 
     <div className="admin-sections">
       <div className="admin-wide-grid">
-        <div className="panel" data-testid="admin-challenges"><h2>Challenge moderation</h2>{challenges.length ? challenges.map((challenge) => <div className="row admin-row" data-challenge-id={challenge.id} key={challenge.id}><div><b>{challenge.title}</b><small>{challenge.status} • {challenge.location} • reported by {challenge.owner}</small></div><div className="admin-status-actions"><span className={`badge ${challenge.priority.toLowerCase()}`}>{challenge.status}</span>{statusTransitions[challenge.status].length > 0 && <div className="card-actions">{statusTransitions[challenge.status].map((status) => <button className={`btn ${status === 'Open' || status === 'Resolved' ? 'btn-primary' : 'btn-secondary'}`} data-action={`status-${status.toLowerCase().replaceAll(' ', '-')}`} aria-label={`${statusLabel(challenge.status, status)} ${challenge.title}`} onClick={() => moderate(challenge.id, status)} disabled={Boolean(busyId)} key={status}>{statusLabel(challenge.status, status)}</button>)}</div>}</div></div>) : <Empty message="No challenges have been reported."/>}</div>
+        <div className="panel" data-testid="admin-challenges"><h2>Challenge moderation</h2>{challenges.length ? challenges.map((challenge) => <div className="row admin-row" data-challenge-id={challenge.id} key={challenge.id}><div><b>{challenge.title}</b><small>{challenge.status} • {challenge.location} • reported by {challenge.owner}</small></div><div className="admin-status-actions"><span className={`badge ${challenge.priority.toLowerCase()}`}>{challenge.status}</span>{statusTransitions[challenge.status].length > 0 && <div className="card-actions">{statusTransitions[challenge.status].map((status) => <button className={`btn ${status === 'Published' || status === 'Implemented' ? 'btn-primary' : 'btn-secondary'}`} data-action={`status-${status.toLowerCase().replaceAll(' ', '-')}`} aria-label={`${statusLabel(challenge.status, status)} ${challenge.title}`} onClick={() => moderate(challenge.id, status)} disabled={Boolean(busyId)} key={status}>{statusLabel(challenge.status, status)}</button>)}</div>}</div></div>) : <Empty message="No challenges have been reported."/>}</div>
 
         <div className="panel" data-testid="admin-users"><h2>Users and roles</h2>{users.length ? users.map((user) => <div className="row" data-user-id={user.id} key={user.id}><div><b>{user.name}</b><small>{user.email}</small></div><select aria-label={`Role for ${user.name}`} value={user.role} onChange={(event) => setRole(user.id, event.target.value as UserRole)} disabled={Boolean(busyId)}>{roles.map((role) => <option key={role}>{role}</option>)}</select></div>) : <Empty message="No users have registered."/>}</div>
       </div>

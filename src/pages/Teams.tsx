@@ -21,7 +21,7 @@ export function Teams() {
     try {
       const [listedTeams, nextChallenges] = await Promise.all([teamApi.list(), challengeApi.list({ limit: 100 })])
       const nextTeams = user?.role === 'Student' ? await Promise.all(listedTeams.map((team) => teamApi.get(team.id))) : listedTeams
-      setTeams(nextTeams); setChallenges(nextChallenges.filter((item) => ['Open', 'In progress'].includes(item.status)))
+      setTeams(nextTeams); setChallenges(nextChallenges.filter((item) => ['Published', 'In progress'].includes(item.status)))
     } catch (requestError) { setError(apiError(requestError)) }
     finally { setLoading(false) }
   }, [user?.role])

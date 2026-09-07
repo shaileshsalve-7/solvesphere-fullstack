@@ -31,6 +31,7 @@ input[type="range"]{padding:0}
 .auth-home{margin-top:16px}
 .auth-inline-actions{display:flex;justify-content:space-between;gap:12px}
 .auth-inline-actions button{border:0;background:transparent;padding:4px 0;cursor:pointer}
+.login-mode{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}.login-mode button{padding:10px;border:1px solid #d9e2ea;border-radius:9px;background:#fff;color:#64748b;font:700 12px Inter;cursor:pointer}.login-mode button.active{border-color:#0878f9;background:#eff8ff;color:#075985}
 .development-code{font-size:12px;padding:13px;border-radius:10px;margin:16px 0;color:#075985;background:#eff8ff;border:1px solid #bae6fd}
 .development-code p{line-height:1.55}
 .development-code>div{display:flex;align-items:center;gap:12px}
