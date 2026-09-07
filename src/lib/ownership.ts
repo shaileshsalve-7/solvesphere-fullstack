@@ -31,7 +31,7 @@ export async function canViewChallenge(database: Database, challengeId: string, 
   )
   const record = challenge.rows[0]
   if (!record) return false
-  if (['Open', 'In progress', 'Submitted', 'Resolved'].includes(record.status)) return true
+  if (['Published', 'In progress', 'Implemented'].includes(record.status)) return true
   if (!user) return false
   if (user.role === 'Admin' || record.owner_id === user.id) return true
   const membership = await database.query(

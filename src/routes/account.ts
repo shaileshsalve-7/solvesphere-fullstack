@@ -70,7 +70,7 @@ export async function accountRoutes(app: FastifyInstance, database: Database) {
       database.query<{ total: number; critical: number; open: number }>(
         `select count(*)::int as total,
                 count(*) filter (where priority = 'Critical')::int as critical,
-                count(*) filter (where status in ('Open', 'In progress'))::int as open
+                count(*) filter (where status in ('Published', 'In progress'))::int as open
            from challenges`,
       ),
       database.query<{ total: number; mine: number }>(

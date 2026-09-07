@@ -10,7 +10,7 @@ import { conflict, notFound, parse } from '../lib/http.js'
 import { notify, notifyRole } from '../lib/notifications.js'
 import { canContributeEvidence, canViewChallenge } from '../lib/ownership.js'
 
-const challengeStatuses = ['Under review', 'Open', 'In progress', 'Submitted', 'Resolved', 'Denied'] as const
+const challengeStatuses = ['Under review', 'Published', 'In progress', 'Implemented', 'Rejected'] as const
 const priorities = ['Low', 'Medium', 'High', 'Critical'] as const
 const uuidParams = z.object({ id: z.string().uuid() })
 const createSchema = z.object({
@@ -33,12 +33,11 @@ const listSchema = z.object({
 })
 
 const transitions: Record<string, string[]> = {
-  'Under review': ['Open', 'Denied'],
-  Open: ['In progress', 'Denied'],
-  'In progress': ['Submitted', 'Resolved', 'Denied'],
-  Submitted: ['Resolved', 'In progress', 'Denied'],
-  Denied: ['Under review'],
-  Resolved: [],
+  'Under review': ['Published', 'Rejected'],
+  Published: ['In progress', 'Rejected'],
+  'In progress': ['Implemented', 'Rejected'],
+  Rejected: ['Under review'],
+  Implemented: [],
 }
 
 function shapeChallenge(row: Record<string, unknown>) {
@@ -77,7 +76,7 @@ export async function challengeRoutes(app: FastifyInstance, database: Database, 
       params.push(request.authUser.id)
       clauses.push(`c.owner_id = $${params.length}`)
     } else {
-      clauses.push(`c.status in ('Open', 'In progress', 'Submitted', 'Resolved')`)
+      clauses.push(`c.status in ('Published', 'In progress', 'Implemented')`)
     }
     if (query.q) {
       params.push(`%${query.q}%`)
@@ -145,7 +144,7 @@ export async function challengeRoutes(app: FastifyInstance, database: Database, 
     if (request.authUser!.role !== 'Admin' && challenge.owner_id !== request.authUser!.id) {
       return reply.code(403).send({ error: 'forbidden', message: 'Only the challenge owner or an administrator can edit it.' })
     }
-    if (request.authUser!.role !== 'Admin' && !['Under review', 'Denied'].includes(challenge.status)) {
+    if (request.authUser!.role !== 'Admin' && !['Under review', 'Rejected'].includes(challenge.status)) {
       return conflict(reply, 'A challenge can only be edited by its owner while it is under review or denied.')
     }
     const fields = Object.entries(body)
@@ -185,9 +184,9 @@ export async function challengeRoutes(app: FastifyInstance, database: Database, 
          values($1, $2, $3, $4, $5, $6)`,
         [randomUUID(), params.id, challenge.status, body.status, body.reason ?? null, request.authUser!.id],
       )
-      const notificationTitle = body.status === 'Open'
+      const notificationTitle = body.status === 'Published'
         ? 'Challenge approved'
-        : body.status === 'Denied'
+        : body.status === 'Rejected'
           ? 'Challenge rejected'
           : 'Challenge status updated'
       await notify(transaction, challenge.owner_id, notificationTitle, `${challenge.title} is now ${body.status}.`, 'challenge', params.id)

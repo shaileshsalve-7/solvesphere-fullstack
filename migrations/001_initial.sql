@@ -33,7 +33,7 @@ create table if not exists challenges (
   description text not null,
   category text not null,
   location text not null,
-  status text not null default 'Under review' check (status in ('Under review', 'Open', 'In progress', 'Submitted', 'Resolved', 'Denied')),
+  status text not null default 'Under review' check (status in ('Under review', 'Published', 'In progress', 'Implemented', 'Rejected')),
   priority text not null default 'Medium' check (priority in ('Low', 'Medium', 'High', 'Critical')),
   readiness integer not null default 0 check (readiness between 0 and 100),
   owner_id uuid not null references profiles(id),

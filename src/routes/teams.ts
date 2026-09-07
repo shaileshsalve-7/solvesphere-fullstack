@@ -33,7 +33,7 @@ export async function teamRoutes(app: FastifyInstance, database: Database) {
     if (request.authUser!.role !== 'Admin') {
       values.push(request.authUser!.id)
       clauses.push(`(
-        c.status in ('Open', 'In progress', 'Submitted', 'Resolved')
+        c.status in ('Published', 'In progress', 'Implemented')
         or c.owner_id = $${values.length}
         or exists(select 1 from team_members visible_tm where visible_tm.team_id = t.id and visible_tm.user_id = $${values.length})
       )`)
@@ -75,7 +75,7 @@ export async function teamRoutes(app: FastifyInstance, database: Database) {
         )
         const challenge = challengeResult.rows[0]
         if (!challenge) return { kind: 'missing' as const }
-        if (!['Open', 'In progress'].includes(challenge.status)) return { kind: 'closed' as const }
+        if (!['Published', 'In progress'].includes(challenge.status)) return { kind: 'closed' as const }
         await transaction.query(
           `insert into teams(id, name, challenge_id, owner_id) values($1, $2, $3, $4)`,
           [id, body.name, params.challengeId, request.authUser!.id],
@@ -84,11 +84,11 @@ export async function teamRoutes(app: FastifyInstance, database: Database) {
           `insert into team_members(team_id, user_id, member_role) values($1, $2, 'Owner')`,
           [id, request.authUser!.id],
         )
-        if (challenge.status === 'Open') {
-          await transaction.query(`update challenges set status = 'In progress', updated_at = now() where id = $1 and status = 'Open'`, [params.challengeId])
+        if (challenge.status === 'Published') {
+          await transaction.query(`update challenges set status = 'In progress', updated_at = now() where id = $1 and status = 'Published'`, [params.challengeId])
           await transaction.query(
             `insert into challenge_status_history(id, challenge_id, from_status, to_status, reason, changed_by)
-             values($1, $2, 'Open', 'In progress', 'First team created', $3)`,
+             values($1, $2, 'Published', 'In progress', 'First team created', $3)`,
             [randomUUID(), params.challengeId, request.authUser!.id],
           )
         }
@@ -115,11 +115,11 @@ export async function teamRoutes(app: FastifyInstance, database: Database) {
     )
     const team = result.rows[0]
     if (!team) return notFound(reply, 'Team')
-    if (!['Open', 'In progress'].includes(team.challenge_status) && !(await isTeamMember(database, params.id, request.authUser!.id))) {
+    if (!['Published', 'In progress'].includes(team.challenge_status) && !(await isTeamMember(database, params.id, request.authUser!.id))) {
       return notFound(reply, 'Team')
     }
     if (team.status !== 'Active') return conflict(reply, 'This team is not accepting members.')
-    if (!['Open', 'In progress'].includes(team.challenge_status)) return conflict(reply, 'This challenge is not accepting new team members.')
+    if (!['Published', 'In progress'].includes(team.challenge_status)) return conflict(reply, 'This challenge is not accepting new team members.')
     if (await isTeamMember(database, params.id, request.authUser!.id)) return conflict(reply, 'You are already a member of this team.')
     await database.query('insert into team_members(team_id, user_id) values($1, $2)', [params.id, request.authUser!.id])
     await notifyTeamMembers(

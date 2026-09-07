@@ -78,7 +78,7 @@ async function canViewSolution(database: Database, id: string, user: AuthUser) {
   )
   const solution = result.rows[0]
   if (!solution) return false
-  const publicChallenge = ['Open', 'In progress', 'Submitted', 'Resolved'].includes(solution.challenge_status)
+  const publicChallenge = ['Published', 'In progress', 'Implemented'].includes(solution.challenge_status)
   if (!publicChallenge && !solution.is_member && solution.owner_id !== user.id) return false
   if (solution.is_member) return true
   if (user.role === 'Mentor') return solution.status !== 'Draft'
@@ -99,7 +99,7 @@ export async function solutionRoutes(app: FastifyInstance, database: Database) {
     if (request.authUser!.role !== 'Admin') {
       values.push(request.authUser!.id)
       clauses.push(`(
-        c.status in ('Open', 'In progress', 'Submitted', 'Resolved')
+        c.status in ('Published', 'In progress', 'Implemented')
         or c.owner_id = $${values.length}
         or exists(select 1 from team_members challenge_tm where challenge_tm.team_id = s.team_id and challenge_tm.user_id = $${values.length})
       )`)

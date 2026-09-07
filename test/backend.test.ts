@@ -312,7 +312,7 @@ test('complete citizen, admin, student, mentor, upload, notification, and admin-
     assert.ok(adminPending.json().items.some((item: { id: string; status: string }) => item.id === challengeId && item.status === 'Under review'))
     const opened = await app.inject({
       method: 'PATCH', url: `/api/challenges/${challengeId}/status`, headers: auth(admin.accessToken),
-      payload: { status: 'Open', reason: 'Problem details are clear enough for publication.' },
+      payload: { status: 'Published', reason: 'Problem details are clear enough for publication.' },
     })
     assert.equal(opened.statusCode, 200, opened.body)
 
@@ -445,7 +445,7 @@ test('complete citizen, admin, student, mentor, upload, notification, and admin-
     const deniedChallengeId = deniedChallenge.json().id as string
     await app.inject({
       method: 'PATCH', url: `/api/challenges/${deniedChallengeId}/status`, headers: auth(admin.accessToken),
-      payload: { status: 'Open', reason: 'Published for an authorization regression test.' },
+      payload: { status: 'Published', reason: 'Published for an authorization regression test.' },
     })
     const deniedTeam = await app.inject({
       method: 'POST', url: `/api/challenges/${deniedChallengeId}/teams`, headers: auth(outsider.accessToken),
@@ -465,7 +465,7 @@ test('complete citizen, admin, student, mentor, upload, notification, and admin-
     assert.equal(deniedEvidence.statusCode, 201, deniedEvidence.body)
     const denied = await app.inject({
       method: 'PATCH', url: `/api/challenges/${deniedChallengeId}/status`, headers: auth(admin.accessToken),
-      payload: { status: 'Denied', reason: 'Duplicate municipal issue report.' },
+      payload: { status: 'Rejected', reason: 'Duplicate municipal issue report.' },
     })
     assert.equal(denied.statusCode, 200, denied.body)
     const hiddenTeams = await app.inject({

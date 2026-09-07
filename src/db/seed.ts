@@ -78,14 +78,14 @@ export async function seedDevelopmentData(database: Database, config: AppConfig)
   for (const challenge of demoChallenges) {
     await database.query(
       `insert into challenges(id, title, description, category, location, status, priority, readiness, owner_id)
-       values($1, $2, $3, $4, $5, 'Open', $6, 0, $7)
+       values($1, $2, $3, $4, $5, 'Published', $6, 0, $7)
        on conflict(id) do nothing`,
       [challenge.id, challenge.title, challenge.description, challenge.category, challenge.location, challenge.priority, ownerId],
     )
     const historyId = challenge.id.replace(/^10000000/, '20000000')
     await database.query(
       `insert into challenge_status_history(id, challenge_id, from_status, to_status, reason, changed_by)
-       values($1, $2, null, 'Open', 'Development demo challenge', $3)
+       values($1, $2, null, 'Published', 'Development demo challenge', $3)
        on conflict(id) do nothing`,
       [historyId, challenge.id, ownerId],
     )

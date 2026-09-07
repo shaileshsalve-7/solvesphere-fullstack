@@ -79,17 +79,17 @@ Notifications cover challenge submission/moderation, team activity, solution sub
 | POST | `/challenges/:id/evidence` | Owner/team/Admin | Upload one validated evidence file |
 | GET | `/evidence/:id/download` | Signed in/related | Download evidence subject to challenge visibility |
 
-Challenge creation accepts `title`, `description`, `category`, `location`, and `priority`. Published states are `Open`, `In progress`, `Submitted`, and `Resolved`; hidden states are `Under review` and `Denied`. Priority is `Low`, `Medium`, `High`, or `Critical`.
+Challenge creation accepts `title`, `description`, `category`, `location`, and `priority`. Public tracking states are `Published`, `In progress`, and `Implemented`; hidden moderation states are `Under review` and `Rejected`. These statuses track platform progress only and do not claim real-world execution. Priority is `Low`, `Medium`, `High`, or `Critical`.
 
 Allowed transitions are:
 
 | From | To |
 | --- | --- |
-| Under review | Open, Denied |
-| Open | In progress, Denied |
-| In progress | Submitted, Resolved, Denied |
-| Submitted | Resolved, In progress, Denied |
-| Denied | Under review |
+| Under review | Published, Rejected |
+| Published | In progress, Rejected |
+| In progress | Implemented, Rejected |
+| Rejected | Under review |
+| Implemented | None |
 
 Evidence is multipart form data with `file` and optional `caption`. Supported types are JPEG, PNG, WebP, MP4, and PDF. Extension, declared MIME type, content signature, authorization, and configured size are checked.
 
@@ -103,7 +103,7 @@ Evidence is multipart form data with `file` and optional `caption`. Supported ty
 | POST | `/teams/:id/join` | Student | Join an active team on an open/in-progress challenge |
 | DELETE | `/teams/:id/members/me` | Student member | Leave; owners cannot abandon ownership |
 
-Creating the first team moves an `Open` challenge to `In progress` atomically. Ordinary team details do not expose member email addresses; Admin inspection does.
+Creating the first team moves a `Published` challenge to `In progress` atomically. Ordinary team details do not expose member email addresses; Admin inspection does.
 
 ## Solutions, reviews, and progress
 
