@@ -342,6 +342,8 @@ try {
   console.log('[detail] challenge form opened')
   await fill('[data-testid="challenge-form"] input[name="title"]', challengeTitle)
   await fill('[data-testid="challenge-form"] input[name="category"]', 'Public Infrastructure')
+  await page.click('[data-testid="other-category-option"]')
+  await fill('[data-testid="other-category-details"]', 'School-zone pedestrian safety')
   await fill('[data-testid="challenge-form"] input[name="location"]', 'Pune, Maharashtra')
   await choose('[data-testid="challenge-form"] select[name="priority"]', 'Critical')
   await fill(
@@ -362,6 +364,7 @@ try {
 
   await goto('/challenges/' + challenge.id)
   await waitForText(challengeTitle)
+  await waitForText('Other category details: School-zone pedestrian safety')
   await waitForText('crossing-observation.pdf')
 
   stage('Admin login and challenge approval')
