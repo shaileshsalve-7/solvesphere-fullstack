@@ -27,7 +27,8 @@ const loginSchema = z.object({ email: emailSchema, password: loginPasswordSchema
 const requestCodeSchema = z.object({ email: emailSchema })
 const verifyCodeSchema = z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) })
 const refreshSchema = z.object({ refreshToken: z.string().min(40).max(256) })
-type VerificationPurpose = 'email-verification' | 'sign-in'
+type VerificationPurpose = 'email-verification' | 'sign-in' | 'password-reset'
+const resetPasswordSchema = z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/), password: passwordSchema })
 
 function tokenHash(token: string) {
   return createHash('sha256').update(token).digest('hex')
@@ -62,8 +63,8 @@ async function deliverCode(config: AppConfig, email: string, code: string, purpo
       body: JSON.stringify({
         from: config.emailFrom,
         to: [email],
-        subject: 'Verify your SolveSphere email',
-        html: `<p>Your SolveSphere verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes.</p>`,
+        subject: purpose === 'password-reset' ? 'Reset your SolveSphere password' : 'Verify your SolveSphere email',
+        html: `<p>Your SolveSphere ${purpose === 'password-reset' ? 'password reset' : 'verification'} code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes.</p>`,
       }),
       signal: AbortSignal.timeout(10_000),
     })
@@ -240,6 +241,42 @@ export async function authRoutes(app: FastifyInstance, database: Database, confi
     }
     const user: AuthUser = { id: account.id, email: account.email, name: account.name, role: account.role }
     return reply.send(await issueSession(app, database, config, user))
+  })
+
+  app.post('/auth/request-password-reset', { config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } }, async (request, reply) => {
+    const body = parse(requestCodeSchema, request.body, reply)
+    if (!body) return
+    const account = await database.query<{ password_hash: string | null }>('select password_hash from profiles where email = $1', [body.email])
+    if (account.rows[0]?.password_hash) {
+      try { await createVerification(database, config, body.email, 'password-reset') }
+      catch (error) {
+        request.log.error({ err: error }, 'Password reset delivery failed')
+        return reply.code(502).send({ error: 'verification_delivery_failed', message: 'The reset email could not be delivered.' })
+      }
+    }
+    return reply.code(202).send({ ok: true, email: body.email, delivery: 'email', expiresInSeconds: 600 })
+  })
+
+  app.post('/auth/reset-password', { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (request, reply) => {
+    const body = parse(resetPasswordSchema, request.body, reply)
+    if (!body) return
+    if (!(await consumeCode(database, body.email, body.code, 'password-reset'))) {
+      return reply.code(401).send({ error: 'invalid_code', message: 'The reset code is invalid or expired.' })
+    }
+    const passwordHash = await hash(body.password, config.nodeEnv === 'test' ? 4 : 12)
+    const profile = await database.transaction(async (transaction) => {
+      const result = await transaction.query<AuthUser>(
+        `update profiles set password_hash = $1, email_verified_at = coalesce(email_verified_at, now()),
+           role = case when email = $3 then 'Admin' else role end, updated_at = now()
+         where email = $2 and password_hash is not null returning id, email, name, role`,
+        [passwordHash, body.email, config.bootstrapAdminEmail ?? ''],
+      )
+      const user = result.rows[0]
+      if (user) await transaction.query('update refresh_tokens set revoked_at = coalesce(revoked_at, now()) where user_id = $1', [user.id])
+      return user
+    })
+    if (!profile) return reply.code(404).send({ error: 'account_not_found', message: 'No account exists for this email.' })
+    return reply.send(await issueSession(app, database, config, profile))
   })
 
   app.post('/auth/request-code', async (_request, reply) => reply.code(410).send({
