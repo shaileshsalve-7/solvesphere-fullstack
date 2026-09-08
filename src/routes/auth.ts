@@ -55,6 +55,21 @@ async function issueSession(app: FastifyInstance, database: Database, config: Ap
 
 async function deliverCode(config: AppConfig, email: string, code: string, purpose: VerificationPurpose) {
   if (config.devAuthEnabled) return
+  if (config.resendApiKey) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${config.resendApiKey}` },
+      body: JSON.stringify({
+        from: config.emailFrom,
+        to: [email],
+        subject: 'Verify your SolveSphere email',
+        html: `<p>Your SolveSphere verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes.</p>`,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!response.ok) throw new Error(`Verification delivery failed with status ${response.status}`)
+    return
+  }
   const response = await fetch(config.otpDeliveryWebhookUrl!, {
     method: 'POST',
     headers: {

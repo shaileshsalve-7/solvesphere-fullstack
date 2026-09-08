@@ -19,6 +19,8 @@ export interface AppConfig {
   devAdminPassword?: string
   otpDeliveryWebhookUrl?: string
   otpDeliveryApiKey?: string
+  resendApiKey?: string
+  emailFrom?: string
   uploadDir: string
   maxUploadBytes: number
 }
@@ -46,10 +48,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const devAuthEnabled = bool(env.DEV_AUTH_ENABLED, nodeEnv !== 'production')
   if (nodeEnv === 'production' && devAuthEnabled) throw new Error('DEV_AUTH_ENABLED cannot be enabled in production')
-  if (!devAuthEnabled && !env.OTP_DELIVERY_WEBHOOK_URL) {
-    throw new Error('OTP_DELIVERY_WEBHOOK_URL is required when development authentication is disabled')
+  if (!devAuthEnabled && !env.OTP_DELIVERY_WEBHOOK_URL && !env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY or OTP_DELIVERY_WEBHOOK_URL is required when development authentication is disabled')
   }
-  if (nodeEnv === 'production' && !env.OTP_DELIVERY_WEBHOOK_URL?.startsWith('https://')) {
+  if (nodeEnv === 'production' && env.OTP_DELIVERY_WEBHOOK_URL && !env.OTP_DELIVERY_WEBHOOK_URL.startsWith('https://')) {
     throw new Error('OTP_DELIVERY_WEBHOOK_URL must use HTTPS in production')
   }
   const devSeedEnabled = bool(env.DEV_SEED_ENABLED, false)
@@ -79,6 +81,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     devAdminPassword: env.DEV_ADMIN_PASSWORD,
     otpDeliveryWebhookUrl: env.OTP_DELIVERY_WEBHOOK_URL,
     otpDeliveryApiKey: env.OTP_DELIVERY_API_KEY,
+    resendApiKey: env.RESEND_API_KEY,
+    emailFrom: env.EMAIL_FROM?.trim() || 'SolveSphere <onboarding@resend.dev>',
     uploadDir: resolve(env.UPLOAD_DIR ?? './uploads'),
     maxUploadBytes: int(env.MAX_UPLOAD_BYTES, 10 * 1024 * 1024, 'MAX_UPLOAD_BYTES'),
   }
