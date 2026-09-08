@@ -2,6 +2,10 @@
 
 React and TypeScript frontend for **SIH26043 — Platform to Crowdsource Societal Challenges and Collaborative Problem Solving**.
 
+Live website: https://solvesphere-dpes.onrender.com
+
+Live API health: https://solvesphere-api-tsbq.onrender.com/health
+
 This branch contains the frontend only. The backend is maintained on the `codex/solvesphere-backend` branch of [shaileshsalve-7/solvesphere-fullstack](https://github.com/shaileshsalve-7/solvesphere-fullstack). The original frontend work and commit history are preserved from [shubhamkadam2737-jpg/solvesphere](https://github.com/shubhamkadam2737-jpg/solvesphere).
 
 ## Features connected to the API
