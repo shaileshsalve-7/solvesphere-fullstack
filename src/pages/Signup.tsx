@@ -53,7 +53,7 @@ export function Signup() {
       setEmail(response.email)
       setDelivery(response)
       setVerifying(true)
-      setCode(response.developmentCode ?? '')
+      setCode('')
     } catch (requestError) {
       setError(apiError(requestError))
     } finally {
@@ -83,8 +83,7 @@ export function Signup() {
     try {
       const response = await resendVerification(email)
       setDelivery(response)
-      if (response.developmentCode) setCode(response.developmentCode)
-      setSuccess(response.delivery === 'development' ? 'A new local development code is ready.' : 'A new verification email was sent.')
+      setSuccess(response.delivery === 'development' ? 'A new verification code was generated for local testing.' : 'A new verification email was sent.')
     } catch (requestError) {
       setError(apiError(requestError))
     } finally {
@@ -125,11 +124,7 @@ export function Signup() {
         </form>
       </> : <>
         <p>Enter the verification code for <strong>{email}</strong>.</p>
-        {delivery?.delivery === 'development' ? <div className="development-code" role="status">
-          <b>Local development verification</b>
-          <p>No email is sent in local mode. This temporary code is supplied by the local backend.</p>
-          {delivery.developmentCode && <div><code>{delivery.developmentCode}</code><button type="button" className="btn btn-secondary" onClick={() => setCode(delivery.developmentCode ?? '')}>Use this code</button></div>}
-        </div> : delivery?.delivery === 'email' ? <div className="info" role="status">A verification code was sent to your email address.</div> : <div className="info" role="status">Request a new code below, then enter it to finish verifying your account.</div>}
+        {delivery?.delivery === 'email' ? <div className="info" role="status">A verification code was sent to your email address.</div> : <div className="info" role="status">Enter the verification code sent to your email address.</div>}
         <form data-testid="verification-form" onSubmit={verify}>
           <label>6-digit verification code
             <input name="verificationCode" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} placeholder="Enter the code" autoComplete="one-time-code" required autoFocus disabled={busy}/>
