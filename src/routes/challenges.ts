@@ -16,7 +16,7 @@ const uuidParams = z.object({ id: z.string().uuid() })
 const createSchema = z.object({
   title: z.string().trim().min(8).max(180),
   description: z.string().trim().min(30).max(10_000),
-  category: z.string().trim().min(2).max(80),
+  category: z.string().trim().min(2).max(500),
   location: z.string().trim().min(2).max(180),
   priority: z.enum(priorities).default('Medium'),
 })
@@ -26,7 +26,7 @@ const listSchema = z.object({
   q: z.string().trim().max(200).optional(),
   status: z.enum(challengeStatuses).optional(),
   priority: z.enum(priorities).optional(),
-  category: z.string().trim().max(80).optional(),
+  category: z.string().trim().max(500).optional(),
   mine: z.union([z.boolean(), z.enum(['true', 'false'])]).transform((value) => value === true || value === 'true').optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
