@@ -21,6 +21,7 @@ export interface AppConfig {
   otpDeliveryApiKey?: string
   resendApiKey?: string
   emailFrom?: string
+  bootstrapAdminEmail?: string
   uploadDir: string
   maxUploadBytes: number
 }
@@ -83,6 +84,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     otpDeliveryApiKey: env.OTP_DELIVERY_API_KEY,
     resendApiKey: env.RESEND_API_KEY,
     emailFrom: env.EMAIL_FROM?.trim() || 'SolveSphere <onboarding@resend.dev>',
+    bootstrapAdminEmail: env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || undefined,
     uploadDir: resolve(env.UPLOAD_DIR ?? './uploads'),
     maxUploadBytes: int(env.MAX_UPLOAD_BYTES, 10 * 1024 * 1024, 'MAX_UPLOAD_BYTES'),
   }

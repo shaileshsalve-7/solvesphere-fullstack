@@ -194,10 +194,11 @@ export async function authRoutes(app: FastifyInstance, database: Database, confi
       return reply.code(401).send({ error: 'invalid_code', message: 'The verification code is invalid or expired.' })
     }
     const profile = await database.query<AuthUser>(
-      `update profiles set email_verified_at = coalesce(email_verified_at, now()), updated_at = now()
+      `update profiles set email_verified_at = coalesce(email_verified_at, now()),
+         role = case when email = $2 then 'Admin' else role end, updated_at = now()
         where email = $1 and password_hash is not null
         returning id, email, name, role`,
-      [body.email],
+      [body.email, config.bootstrapAdminEmail ?? ''],
     )
     const user = profile.rows[0]
     if (!user) return reply.code(404).send({ error: 'account_not_found', message: 'Create an account before verifying this email.' })
