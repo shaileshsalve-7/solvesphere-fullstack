@@ -55,6 +55,7 @@ export function Login() {
         <label>Password
           <input name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" minLength={8} maxLength={72} required disabled={busy}/>
         </label>
+        <Link className="text-link" to="/forgot-password">Forgot password?</Link>
         {error && <div className="error" role="alert">{error}</div>}
         {errorCode === 'email_not_verified' && <Link className="text-link" to={`/signup?verify=1&email=${encodeURIComponent(email.trim())}`}>Verify this email</Link>}
         <button className="btn btn-primary" data-testid="login-submit" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>

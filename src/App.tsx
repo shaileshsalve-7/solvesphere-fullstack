@@ -5,6 +5,7 @@ import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
+import { ForgotPassword } from './pages/ForgotPassword'
 import { Dashboard } from './pages/Dashboard'
 import { Challenges } from './pages/Challenges'
 import { ChallengeDetails } from './pages/ChallengeDetails'
@@ -15,4 +16,4 @@ import { Profile } from './pages/Profile'
 import { Admin } from './pages/Admin'
 import { NotFound } from './pages/NotFound'
 
-export default function App(){return <AuthProvider><BrowserRouter><Routes><Route path="/" element={<Home/>}/><Route path="/login" element={<Login/>}/><Route path="/signup" element={<Signup/>}/><Route element={<ProtectedRoute><Layout/></ProtectedRoute>}><Route path="/dashboard" element={<Dashboard/>}/><Route path="/challenges" element={<Challenges/>}/><Route path="/challenges/:id" element={<ChallengeDetails/>}/><Route path="/teams" element={<Teams/>}/><Route path="/solutions" element={<Solutions/>}/><Route path="/notifications" element={<Notifications/>}/><Route path="/profile" element={<Profile/>}/></Route><Route element={<ProtectedRoute roles={['Admin']}><Layout/></ProtectedRoute>}><Route path="/admin" element={<Admin/>}/></Route><Route path="*" element={<NotFound/>}/></Routes></BrowserRouter></AuthProvider>}
+export default function App(){return <AuthProvider><BrowserRouter><Routes><Route path="/" element={<Home/>}/><Route path="/login" element={<Login/>}/><Route path="/signup" element={<Signup/>}/><Route path="/forgot-password" element={<ForgotPassword/>}/><Route element={<ProtectedRoute><Layout/></ProtectedRoute>}><Route path="/dashboard" element={<Dashboard/>}/><Route path="/challenges" element={<Challenges/>}/><Route path="/challenges/:id" element={<ChallengeDetails/>}/><Route path="/teams" element={<Teams/>}/><Route path="/solutions" element={<Solutions/>}/><Route path="/notifications" element={<Notifications/>}/><Route path="/profile" element={<Profile/>}/></Route><Route element={<ProtectedRoute roles={['Admin']}><Layout/></ProtectedRoute>}><Route path="/admin" element={<Admin/>}/></Route><Route path="*" element={<NotFound/>}/></Routes></BrowserRouter></AuthProvider>}

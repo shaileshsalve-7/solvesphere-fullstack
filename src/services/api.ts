@@ -73,6 +73,8 @@ export const authApi = {
   verifyEmail: (email: string, code: string) => api.post<AuthSession>('/auth/verify-email', { email, code }).then((r) => r.data),
   resendVerification: (email: string) => api.post<VerificationDelivery>('/auth/resend-verification', { email }).then((r) => r.data),
   login: (email: string, password: string) => api.post<AuthSession>('/auth/login', { email, password }).then((r) => r.data),
+  requestPasswordReset: (email: string) => api.post('/auth/request-password-reset', { email }).then((r) => r.data),
+  resetPassword: (email: string, code: string, password: string) => api.post<AuthSession>('/auth/reset-password', { email, code, password }).then((r) => r.data),
   me: () => api.get<{ user: User }>('/auth/me').then((r) => r.data.user),
   logout: (refreshToken: string) => api.post('/auth/logout', { refreshToken }),
 }
