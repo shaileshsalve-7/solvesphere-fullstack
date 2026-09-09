@@ -22,6 +22,7 @@ export interface AppConfig {
   resendApiKey?: string
   emailFrom?: string
   bootstrapAdminEmail?: string
+  demoDataEnabled?: boolean
   uploadDir: string
   maxUploadBytes: number
 }
@@ -85,6 +86,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     resendApiKey: env.RESEND_API_KEY,
     emailFrom: env.EMAIL_FROM?.trim() || 'SolveSphere <onboarding@resend.dev>',
     bootstrapAdminEmail: env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || undefined,
+    demoDataEnabled: bool(env.DEMO_DATA_ENABLED, false),
     uploadDir: resolve(env.UPLOAD_DIR ?? './uploads'),
     maxUploadBytes: int(env.MAX_UPLOAD_BYTES, 10 * 1024 * 1024, 'MAX_UPLOAD_BYTES'),
   }
