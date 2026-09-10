@@ -57,7 +57,7 @@ export function Login() {
         </label>
         <Link className="text-link" to="/forgot-password">Forgot password?</Link>
         {error && <div className="error" role="alert">{error}</div>}
-        {errorCode === 'email_not_verified' && <Link className="text-link" to={`/signup?verify=1&email=${encodeURIComponent(email.trim())}`}>Verify this email</Link>}
+        <Link className="text-link" data-testid="login-verify-email" to={`/signup?verify=1&email=${encodeURIComponent(email.trim())}`}>{errorCode === 'email_not_verified' ? 'Verify this email to continue' : 'Verify email / enter code'}</Link>
         <button className="btn btn-primary" data-testid="login-submit" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <p className="info" data-testid="admin-login-hint"><strong>Administrator?</strong> Select Admin login above. Your role is always verified by the server.</p>
