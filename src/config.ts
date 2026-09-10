@@ -20,6 +20,8 @@ export interface AppConfig {
   otpDeliveryWebhookUrl?: string
   otpDeliveryApiKey?: string
   resendApiKey?: string
+  brevoApiKey?: string
+  brevoSenderEmail?: string
   emailFrom?: string
   bootstrapAdminEmail?: string
   demoDataEnabled?: boolean
@@ -50,8 +52,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const devAuthEnabled = bool(env.DEV_AUTH_ENABLED, nodeEnv !== 'production')
   if (nodeEnv === 'production' && devAuthEnabled) throw new Error('DEV_AUTH_ENABLED cannot be enabled in production')
-  if (!devAuthEnabled && !env.OTP_DELIVERY_WEBHOOK_URL && !env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY or OTP_DELIVERY_WEBHOOK_URL is required when development authentication is disabled')
+  if (!devAuthEnabled && !env.OTP_DELIVERY_WEBHOOK_URL && !env.RESEND_API_KEY && !env.BREVO_API_KEY) {
+    throw new Error('BREVO_API_KEY, RESEND_API_KEY or OTP_DELIVERY_WEBHOOK_URL is required when development authentication is disabled')
+  }
+  if (env.BREVO_API_KEY && !emailPattern.test(env.BREVO_SENDER_EMAIL?.trim() ?? '')) {
+    throw new Error('BREVO_SENDER_EMAIL must be a valid, verified Brevo sender when BREVO_API_KEY is set')
   }
   if (nodeEnv === 'production' && env.OTP_DELIVERY_WEBHOOK_URL && !env.OTP_DELIVERY_WEBHOOK_URL.startsWith('https://')) {
     throw new Error('OTP_DELIVERY_WEBHOOK_URL must use HTTPS in production')
@@ -84,6 +89,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     otpDeliveryWebhookUrl: env.OTP_DELIVERY_WEBHOOK_URL,
     otpDeliveryApiKey: env.OTP_DELIVERY_API_KEY,
     resendApiKey: env.RESEND_API_KEY,
+    brevoApiKey: env.BREVO_API_KEY,
+    brevoSenderEmail: env.BREVO_SENDER_EMAIL?.trim().toLowerCase(),
     emailFrom: env.EMAIL_FROM?.trim() || 'SolveSphere <onboarding@resend.dev>',
     bootstrapAdminEmail: env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || undefined,
     demoDataEnabled: bool(env.DEMO_DATA_ENABLED, false),

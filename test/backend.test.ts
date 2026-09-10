@@ -534,6 +534,63 @@ test('PGlite credentials and challenges survive an application restart', async (
   }
 })
 
+test('Brevo delivery failures leave accounts unverified and resend safely recovers', async () => {
+  assert.throws(() => loadConfig({ JWT_ACCESS_SECRET: secret, BREVO_API_KEY: 'test-only' }), /BREVO_SENDER_EMAIL/)
+  const config = testConfig({
+    nodeEnv: 'production', devAuthEnabled: false,
+    brevoApiKey: 'test-only', brevoSenderEmail: 'sender@example.test',
+  })
+  const originalFetch = globalThis.fetch
+  let rejectDelivery = true
+  const messages: Array<{ textContent: string; subject: string }> = []
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://api.brevo.com/v3/smtp/email')
+    assert.equal(new Headers(options?.headers).get('api-key'), 'test-only')
+    const message = JSON.parse(String(options?.body))
+    assert.equal(message.sender.email, 'sender@example.test')
+    assert.equal(message.to[0].email, 'recipient@example.test')
+    messages.push(message)
+    return new Response(JSON.stringify(rejectDelivery ? { code: 'unauthorized' } : { messageId: 'test-only' }), { status: rejectDelivery ? 403 : 201 })
+  }
+  const app = await buildApp({ config })
+  const email = 'recipient@example.test'
+  const latestCode = () => messages.at(-1)!.textContent.match(/\b\d{6}\b/)![0]
+  try {
+    const failed = await app.inject({ method: 'POST', url: '/api/auth/signup', payload: { name: 'Email Test', email, password: defaultPassword, role: 'Citizen' } })
+    assert.equal(failed.statusCode, 502)
+    assert.equal(failed.json().error, 'verification_delivery_failed')
+    assert.equal('developmentCode' in failed.json(), false)
+    const failedCode = latestCode()
+    const blocked = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password: defaultPassword } })
+    assert.equal(blocked.statusCode, 403)
+    assert.equal(blocked.json().error, 'email_not_verified')
+    const undelivered = await app.inject({ method: 'POST', url: '/api/auth/verify-email', payload: { email, code: failedCode } })
+    assert.equal(undelivered.statusCode, 401)
+    rejectDelivery = false
+    const resent = await app.inject({ method: 'POST', url: '/api/auth/resend-verification', payload: { email } })
+    assert.equal(resent.statusCode, 202)
+    assert.equal(resent.json().delivery, 'email')
+    assert.equal('developmentCode' in resent.json(), false)
+    const code = latestCode()
+    const session = await verify(app, email, code)
+    assert.equal(session.user.role, 'Citizen')
+    const replay = await app.inject({ method: 'POST', url: '/api/auth/verify-email', payload: { email, code } })
+    assert.equal(replay.statusCode, 401)
+    await login(app, email)
+    const reset = await app.inject({ method: 'POST', url: '/api/auth/request-password-reset', payload: { email } })
+    assert.equal(reset.statusCode, 202)
+    assert.match(messages.at(-1)!.subject, /Reset/)
+    const changed = await app.inject({ method: 'POST', url: '/api/auth/reset-password', payload: { email, code: latestCode(), password: 'Changed@Test123' } })
+    assert.equal(changed.statusCode, 200)
+    const revoked = await app.inject({ method: 'POST', url: '/api/auth/refresh', payload: { refreshToken: session.refreshToken } })
+    assert.equal(revoked.statusCode, 401)
+  } finally {
+    globalThis.fetch = originalFetch
+    await app.close()
+    await rm(config.uploadDir, { recursive: true, force: true })
+  }
+})
+
 test('production rejects all development auth and seed modes and never returns a verification code', async () => {
   assert.throws(() => loadConfig({
     NODE_ENV: 'production', DATABASE_MODE: 'postgres', DATABASE_URL: 'postgres://example.invalid/db',

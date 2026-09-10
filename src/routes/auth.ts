@@ -56,6 +56,21 @@ async function issueSession(app: FastifyInstance, database: Database, config: Ap
 
 async function deliverCode(config: AppConfig, email: string, code: string, purpose: VerificationPurpose) {
   if (config.devAuthEnabled) return
+  if (config.brevoApiKey) {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'api-key': config.brevoApiKey },
+      body: JSON.stringify({
+        sender: { name: 'SolveSphere', email: config.brevoSenderEmail },
+        to: [{ email }],
+        subject: purpose === 'password-reset' ? 'Reset your SolveSphere password' : 'Verify your SolveSphere email',
+        textContent: `Your SolveSphere ${purpose === 'password-reset' ? 'password reset' : 'verification'} code is ${code}. It expires in 10 minutes. If you did not request this code, ignore this email.`,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!response.ok) throw new Error(`Brevo verification delivery failed with status ${response.status}`)
+    return
+  }
   if (config.resendApiKey) {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
